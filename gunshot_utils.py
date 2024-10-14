@@ -1,19 +1,17 @@
 import random
 import numpy as np
-import pandas as pd
 import torchaudio
 import torch as th
 from tqdm import tqdm
 import librosa
-import os
 from pydub import AudioSegment
 import re
 import ast
 import sounddevice as sd
-from pydub.playback import play
-from IPython.display import Audio
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.metrics import roc_auc_score, roc_curve, confusion_matrix
+from sklearn.metrics import ConfusionMatrixDisplay
 
 SAMPLING_RATE = 44100
 HOP_LENGTH = 512
@@ -368,3 +366,178 @@ def extract_sample_at_time(audio_path, start_time_sec, frame_size=NUM_FRAMES, ho
 
 ##########################################################################################################################
 
+device = th.device("cuda" if th.cuda.is_available() else "cpu")
+use_cuda = th.cuda.is_available()
+
+def train_model(model, optimizer, criterion, train_loader, valid_loader, epochs=10, mean=None, std=None, patience=3):
+    if mean is None or std is None:
+        raise ValueError("Mean and std must be provided for normalization.")
+
+    mean = mean.to(device)
+    std = std.to(device)
+    model = model.to(device)
+    best_score = 0.0
+    epochs_since_improvement = 0
+
+    if use_cuda:
+        scaler = th.cuda.amp.GradScaler()
+    else:
+        scaler = None
+
+    for epoch in range(epochs):
+        model.train()
+        running_loss = 0.0
+
+        # Add tqdm progress bar for training loop
+        train_loader_tqdm = tqdm(train_loader, desc=f"Epoch [{epoch+1}/{epochs}] Training")
+
+        for features, labels in train_loader_tqdm:
+            features, labels = features.to(device), labels.to(device).float().to(device)
+            optimizer.zero_grad()
+            features = (features - mean) / std
+
+            if use_cuda:
+                with th.cuda.amp.autocast():
+                    outputs = model(features).view(-1)
+                    loss = criterion(outputs, labels)
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                outputs = model(features).view(-1)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+
+            running_loss += loss.item() * features.size(0)
+
+            # Update tqdm description with current loss
+            train_loader_tqdm.set_postfix(loss=loss.item())
+
+        epoch_loss = running_loss / len(train_loader.dataset)
+        print(f"Epoch [{epoch+1}/{epochs}], Loss: {epoch_loss:.4f}")
+
+        model.eval()
+        val_score = evaluate_model_simple(model, valid_loader, mean, std)
+
+        if val_score > best_score:
+            best_score = val_score
+            epochs_since_improvement = 0
+            print(f"New best ROC AUC score: {best_score:.4f}, model saved.")
+            # Save the model if desired
+            # torch.save(model.state_dict(), 'best_model.pth')
+        else:
+            epochs_since_improvement += 1
+
+        if epochs_since_improvement >= patience:
+            print(f"No improvement in ROC AUC score for {patience} epochs. Stopping training.")
+            break
+
+    # After training, find the optimal threshold
+    best_threshold = find_optimal_threshold_after_training(model, valid_loader, mean, std)
+
+    # Compute and display the confusion matrix
+    cm = compute_confusion_matrix(model, valid_loader, best_threshold, mean, std)
+    display_confusion_matrix(cm)
+
+    return best_threshold, best_score
+
+
+def evaluate_model_simple(model, valid_loader, mean, std):
+
+    all_outputs = []
+    all_labels = []
+
+    valid_loader_tqdm = tqdm(valid_loader, desc="Validation")
+
+    with th.no_grad():
+        for features, labels in valid_loader_tqdm:
+            features = features.to(device)
+            labels = labels.to(device).float()
+            features = (features - mean) / std
+            outputs = model(features).view(-1).cpu().numpy()
+            all_outputs.append(outputs)
+            all_labels.append(labels.cpu().numpy())
+
+    all_outputs = np.concatenate(all_outputs)
+    all_labels = np.concatenate(all_labels)
+    auc = roc_auc_score(all_labels, all_outputs)
+    print(f"Validation ROC AUC: {auc:.4f}")
+    return auc
+
+def find_optimal_threshold_after_training(model, valid_loader, mean, std):
+
+    all_outputs = []
+    all_labels = []
+
+    # Add tqdm progress bar for validation loop
+    valid_loader_tqdm = tqdm(valid_loader, desc="Finding Optimal Threshold")
+
+    with th.no_grad():
+        for features, labels in valid_loader_tqdm:
+            features = features.to(device)
+            labels = labels.to(device).float()
+            features = (features - mean) / std
+            outputs = model(features).view(-1).cpu().numpy()
+            all_outputs.append(outputs)
+            all_labels.append(labels.cpu().numpy())
+
+    all_outputs = np.concatenate(all_outputs)
+    all_labels = np.concatenate(all_labels)
+
+    fpr, tpr, thresholds = roc_curve(all_labels, all_outputs)
+    youdens_j = tpr - fpr
+    idx = np.argmax(youdens_j)
+    optimal_threshold = thresholds[idx]
+
+    print(f"Optimal threshold found: {optimal_threshold:.4f}")
+    return optimal_threshold
+
+def compute_confusion_matrix(model, valid_loader, threshold, mean, std):
+    """
+    Compute confusion matrix using batch processing.
+
+    Parameters:
+        model (torch.nn.Module): The trained model.
+        valid_loader (DataLoader): DataLoader for validation data.
+        threshold (float): Threshold to convert probabilities to binary predictions.
+        mean (torch.Tensor): Mean for normalization.
+        std (torch.Tensor): Standard deviation for normalization.
+
+    Returns:
+        cm (numpy.ndarray): Confusion matrix.
+    """
+    all_outputs = []
+    all_labels = []
+
+    # Add tqdm progress bar for validation loop
+    valid_loader_tqdm = tqdm(valid_loader, desc="Computing Confusion Matrix")
+
+    with th.no_grad():
+        for features, labels in valid_loader_tqdm:
+            features = features.to(device)
+            labels = labels.cpu().numpy()
+            features = (features - mean) / std
+            outputs = model(features).view(-1).cpu().numpy()
+            all_outputs.append(outputs)
+            all_labels.append(labels)
+
+    all_outputs = np.concatenate(all_outputs)
+    all_labels = np.concatenate(all_labels)
+
+    predictions = (all_outputs >= threshold).astype(int)
+    cm = confusion_matrix(all_labels, predictions)
+
+    return cm
+
+def display_confusion_matrix(cm):
+    """
+    Displays the confusion matrix using matplotlib.
+
+    Parameters:
+        cm (numpy.ndarray): Confusion matrix.
+    """
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[0, 1])
+    disp.plot(cmap='magma')
+    plt.title('Confusion Matrix')
+    plt.show()
