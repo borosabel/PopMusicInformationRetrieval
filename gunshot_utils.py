@@ -9,11 +9,14 @@ import os
 from pydub import AudioSegment
 import re
 import ast
+import sounddevice as sd
 from pydub.playback import play
 from IPython.display import Audio
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 SAMPLING_RATE = 44100
-HOP_LENGTH = 512  # Define the hop length (e.g., 512 samples)
+HOP_LENGTH = 512
 ONSETS_ABS_ERROR_RATE_IN_SECONDS = 0.050
 WIN_LENGTHS = [1024, 2048, 4096]
 WIN_SIZES = [0.023, 0.046, 0.093]
@@ -42,9 +45,71 @@ def preprocess_gunshot_times(gunshot_times, include_first_gunshot_only=False):
     except (ValueError, SyntaxError):
         return []
 
+def plot_waveform(waveform, sample_rate, vertical_lines=None):
+    """
+    Plot an audio waveform with optional vertical lines.
+
+    Parameters:
+    waveform (Tensor or ndarray): The audio waveform.
+    sample_rate (int): The sample rate of the audio.
+    vertical_lines (list of float, optional): List of times (in seconds) where vertical lines should be plotted.
+    """
+    try:
+        # Convert waveform to numpy if needed
+        if hasattr(waveform, 'numpy'):
+            waveform = waveform.numpy()
+
+        # If stereo, select one channel for plotting
+        if waveform.ndim == 2:
+            waveform = waveform[0]
+
+        # Create time axis in seconds
+        time_axis = np.linspace(0, len(waveform) / sample_rate, num=len(waveform))
+
+        # Plot the waveform
+        plt.figure(figsize=(10, 4))
+        sns.lineplot(x=time_axis, y=waveform, color='blue')
+
+        # Plot vertical lines if specified
+        if vertical_lines:
+            for line_time in vertical_lines:
+                plt.axvline(x=line_time, color='red', linestyle='--', linewidth=1)
+
+        plt.xlabel('Time (s)')
+        plt.ylabel('Amplitude')
+        plt.title('Waveform')
+        plt.grid(True)
+        plt.show()
+    except Exception as e:
+        print(f"Error occurred while plotting waveform: {e}")
+
 
 def play_audio(waveform, sample_rate):
-    return Audio(waveform.numpy(), rate=sample_rate)
+    """
+    Play an already loaded audio waveform using sounddevice.
+
+    Parameters:
+    waveform (Tensor or ndarray): The audio waveform.
+    sample_rate (int): The sample rate of the audio.
+    """
+    try:
+        if waveform.ndim == 2:
+            num_channels, num_samples = waveform.shape
+
+            if num_channels == 2:
+                waveform_np = waveform.T.numpy()
+            elif num_channels == 1:
+                waveform_np = waveform.squeeze().numpy()
+            else:
+                raise ValueError(f"Unsupported number of channels: {num_channels}")
+        else:
+            waveform_np = waveform.numpy()
+
+        # Play the audio using sounddevice
+        sd.play(waveform_np, samplerate=sample_rate)
+        sd.wait()
+    except Exception as e:
+        print(f"Error occurred while playing audio: {e}")
 
 
 def extract_music_segment(music_file, excerpt_len=5.0, sample_rate=44100):
@@ -73,24 +138,17 @@ def extract_music_segment(music_file, excerpt_len=5.0, sample_rate=44100):
 
     return music_segment, sample_rate
 
-import torchaudio
-import random
-import IPython.display as ipd
 
 def combine_music_and_gunshot(music_file, gunshot_file, gunshot_time, excerpt_len_sec=5.0, gunshot_placement_sec=2.0,
                               gunshot_volume_increase_dB=5, sample_rate=44100, pre_gunshot_time=0.5):
     """
     Combines a music segment with a gunshot at the specified placement time.
     """
+    # --- DEALING WITH THE MUSIC FILE ---
     music_waveform, sr = torchaudio.load(music_file)
     if sr != sample_rate:
-        print(f"Resampling music from {sr} Hz to {sample_rate} Hz.")
+        # print(f"Resampling music from {sr} Hz to {sample_rate} Hz. \n")
         music_waveform = torchaudio.transforms.Resample(sr, sample_rate)(music_waveform)
-
-    # Play the original music file (convert tensor to 1D for playback)
-    music_audio_preview = music_waveform.mean(dim=0).numpy() if music_waveform.ndim > 1 else music_waveform.numpy()
-    # print("Here is a preview of the original music:")
-    # ipd.display(ipd.Audio(music_audio_preview, rate=sample_rate))
 
     excerpt_len_samples = int(excerpt_len_sec * sample_rate)
 
@@ -99,49 +157,37 @@ def combine_music_and_gunshot(music_file, gunshot_file, gunshot_time, excerpt_le
     max_start_sample = max(0, total_music_samples - excerpt_len_samples)
     start_pos_music = random.randint(0, max_start_sample)
     music_segment = music_waveform[:, start_pos_music:start_pos_music + excerpt_len_samples]
+    # --- DEALING WITH THE MUSIC FILE ---
 
-    print(f"Extracted a {excerpt_len_sec} seconds music excerpt for processing.")
-
-    # Play the music segment
-    music_segment_preview = music_segment.mean(dim=0).numpy() if music_segment.ndim > 1 else music_segment.numpy()
-    # print("Preview of the music segment that will be combined with the gunshot:")
-    # ipd.display(ipd.Audio(music_segment_preview, rate=sample_rate))
-
-    print("Loading the gunshot file...")
+    # --- DEALING WITH THE GUNSHOT FILE ---
+    # print("Loading the gunshot file...\n")
     gunshot_waveform, sr_gunshot = torchaudio.load(gunshot_file)
     if sr_gunshot != sample_rate:
-        print(f"Resampling gunshot from {sr_gunshot} Hz to {sample_rate} Hz.")
+        # print(f"Resampling gunshot from {sr_gunshot} Hz to {sample_rate} Hz.\n")
         gunshot_waveform = torchaudio.transforms.Resample(sr_gunshot, sample_rate)(gunshot_waveform)
 
-    gunshot_start_sample = int((gunshot_time - pre_gunshot_time) * sample_rate)
-    gunshot_segment = gunshot_waveform[:, gunshot_start_sample:]
+    if gunshot_time >= pre_gunshot_time:
+        gunshot_start_sample = int((gunshot_time - pre_gunshot_time) * sample_rate)
+        gunshot_segment = gunshot_waveform[:, gunshot_start_sample:]
+    else:
+        # If gunshot_time is less than the threshold, keep the entire waveform
+        gunshot_segment = gunshot_waveform
 
     # Apply volume gain to gunshot
     gain_factor = 10 ** (gunshot_volume_increase_dB / 20)
     gunshot_segment *= gain_factor
 
-    print(f"Applying a {gunshot_volume_increase_dB} dB volume increase to the gunshot.")
-
-    # Play the gunshot segment
-    gunshot_segment_preview = gunshot_segment.mean(dim=0).numpy() if gunshot_segment.ndim > 1 else gunshot_segment.numpy()
-    # print("Preview of the gunshot that will be added to the music:")
-    # ipd.display(ipd.Audio(gunshot_segment_preview, rate=sample_rate))
+    # print(f"Applying a {gunshot_volume_increase_dB} dB volume increase to the gunshot.")
 
     gunshot_placement_sample = int(gunshot_placement_sec * sample_rate)
 
     if gunshot_placement_sample + gunshot_segment.size(1) > music_segment.size(1):
         gunshot_segment = gunshot_segment[:, :music_segment.size(1) - gunshot_placement_sample]
+    # --- DEALING WITH THE GUNSHOT FILE ---
 
     # Overlay the gunshot onto the music
     combined_segment = music_segment.clone()
     combined_segment[:, gunshot_placement_sample:gunshot_placement_sample + gunshot_segment.size(1)] += gunshot_segment
-
-    print(f"Combining the music and gunshot. The gunshot will be placed at {gunshot_placement_sec} seconds.")
-
-    # Play the final combined audio
-    combined_segment_preview = combined_segment.mean(dim=0).numpy() if combined_segment.ndim > 1 else combined_segment.numpy()
-    # print("Here is the final combined audio with the music and the gunshot:")
-    # ipd.display(ipd.Audio(combined_segment_preview, rate=sample_rate))
 
     return combined_segment, sample_rate
 
@@ -159,22 +205,22 @@ def preprocess_audio_train(waveform, sample_rate, label, gunshot_time=None):
         spectrograms (list): List of spectrograms for training.
         labels (list): List of labels corresponding to each spectrogram.
     """
-    print("------PREPROCESSING AUDIO DATA------")
+    # print("------PREPROCESSING AUDIO DATA------")
     spectrograms = []
     labels = []
-    print("Waveform shape: ", waveform.shape)
-    print("Sampling rate: ", sample_rate)
+    # print("Waveform shape: ", waveform.shape)
+    # print("Sampling rate: ", sample_rate)
     # If it's a gunshot sample, use the select_gunshot_segment function
     if label == 1 and gunshot_time is not None:
         segment = select_gunshot_segment(waveform, sample_rate, gunshot_time, FRAME_LENGTH)
     else:
         segment = select_random_segment(waveform, sample_rate, FRAME_LENGTH)
-    print(f"Segment shape after cutting {FRAME_LENGTH} size: {segment.shape}")
+    # print(f"Segment shape after cutting {FRAME_LENGTH} size: {segment.shape}")
     mel_specgram = calculate_melbands(segment[0], sample_rate)
-    print(f"MEL SPECTOGRAM shape of the segment {mel_specgram.shape}")
+    # print(f"MEL SPECTOGRAM shape of the segment {mel_specgram.shape}")
     spectrograms.append(mel_specgram)
     labels.append(label)
-    print("------PREPROCESSING AUDIO DATA------")
+    # print("------PREPROCESSING AUDIO DATA------")
     return spectrograms, labels
 
 
@@ -193,39 +239,47 @@ def select_random_segment(waveform, sample_rate, frame_length):
     return waveform[:, start_sample:end_sample]
 
 
-def select_gunshot_segment(waveform, sample_rate, gunshot_time, frame_length, max_shift_sec=0):
+def frames_to_seconds(frame_count, sample_rate):
     """
-    Selects a segment of audio around the gunshot, allowing for a random shift in the gunshot position.
+    Convert a number of frames to seconds based on the sample rate.
 
     Parameters:
-        waveform (Tensor): The audio waveform tensor.
-        sample_rate (int): The sample rate of the audio.
-        gunshot_time (float): The time of the gunshot in seconds.
-        frame_length (int): The desired length of the segment (in samples).
-        max_shift_sec (float): Maximum time in seconds by which to shift the gunshot position.
+    frame_count (int): The number of frames.
+    sample_rate (int): The sample rate of the audio.
 
     Returns:
-        Tensor: The selected segment of audio.
+    float: The equivalent time in seconds.
     """
-    print(f"------SELECTING GUNSHOT SEGMENT WITH FRAME SIZE OF {frame_length}------")
-    # Compute the amount of shift in time (in seconds) randomly within [-max_shift_sec, +max_shift_sec]
-    # random_shift = random.uniform(-max_shift_sec, max_shift_sec)
+    seconds = frame_count / sample_rate
+    print(f"Frame count: {frame_count} Number of frames: {frame_count} corresponds to {seconds:.4f} seconds at a sample rate of {sample_rate} Hz.")
+    return seconds
 
-    # Adjust the gunshot start time with the random shift
-    # shifted_gunshot_time = gunshot_time + random_shift
 
-    # Ensure the start time doesn't go out of bounds (start time should be >= 0)
-    start_time = max(0, gunshot_time - (frame_length / sample_rate) / 2)
+def select_gunshot_segment(waveform, sample_rate, start_time, frame_count=FRAME_LENGTH):
+    """
+    Selects a segment of audio starting from a given time and lasting for a given number of frames.
 
-    # Ensure the end time doesn't exceed the waveform length
+    Parameters:
+        waveform (Tensor or ndarray): The audio waveform.
+        sample_rate (int): The sample rate of the audio.
+        start_time (float): The start time in seconds for selecting the segment.
+        frame_count (int): The number of frames to select.
+
+    Returns:
+        Tensor or ndarray: The selected segment of audio.
+    """
+    # frames_to_seconds(frame_count, sample_rate)
+
+    # Calculate start and end sample indices
     start_sample = int(start_time * sample_rate)
-    end_sample = start_sample + int(frame_length)
+    end_sample = start_sample + frame_count
 
     # Ensure we don't exceed the total length of the waveform
-    end_sample = min(end_sample, waveform.size(1))
-    start_sample = max(0, end_sample - int(frame_length))  # Adjust start if needed
-    print(f"------SELECTING GUNSHOT SEGMENT------")
+    end_sample = min(end_sample, waveform.shape[1])
+    start_sample = max(0, end_sample - frame_count)
+
     return waveform[:, start_sample:end_sample]
+
 
 def calculate_melbands(waveform, sample_rate):
     mel_specs = []
@@ -240,7 +294,7 @@ def calculate_melbands(waveform, sample_rate):
         )(waveform)
         mel_specs.append(mel_spectrogram)
 
-    mel_specs = th.log10(th.stack(mel_specs) + 1e-08)  # Shape: [3, 80, 15]
+    mel_specs = th.log10(th.stack(mel_specs) + 1e-08)  # Shape: [3, 80, NUM FRAMES]
 
     # Calculate additional timbre features
     waveform_np = waveform.numpy()
@@ -267,9 +321,6 @@ def calculate_melbands(waveform, sample_rate):
 
     return combined_features
 
-
-##########################################################################################################################
-
 def preprocess_audio(files):
     spectrograms = []
     sample_rates = []
@@ -282,4 +333,38 @@ def preprocess_audio(files):
 
     return spectrograms, sample_rates
 
-#%%
+def compute_mean_std(dataloader):
+    l = []
+    for features, _ in tqdm(dataloader, desc="Computing mean and std"):
+        l += features
+    tmp = th.cat(l)
+    mean = th.mean(tmp, dim=(0, 2)).unsqueeze(1)
+    std = th.std(tmp, dim=(0, 2)).unsqueeze(1)
+    return mean, std
+
+def extract_sample_at_time(audio_path, start_time_sec, frame_size=NUM_FRAMES, hop_length=HOP_LENGTH):
+
+    # Load the full audio file
+    audio = AudioSegment.from_file(audio_path)
+
+    _, sample_rate = torchaudio.load(audio_path)
+
+    sample_duration_sec = (frame_size - 1) * hop_length / sample_rate
+    sample_duration_ms = sample_duration_sec * 1000
+
+    # Calculate start time in milliseconds
+    start_time_ms = start_time_sec * 1000
+
+    # Extract the segment using pydub
+    sample = audio[start_time_ms:start_time_ms + sample_duration_ms]
+
+    frame_offset = int(start_time_sec * sample_rate)
+    num_frames = int(sample_duration_sec * sample_rate)
+
+    waveform, _ = torchaudio.load(audio_path, frame_offset=frame_offset, num_frames=num_frames)
+
+    return waveform, sample, sample_rate
+
+
+##########################################################################################################################
+
