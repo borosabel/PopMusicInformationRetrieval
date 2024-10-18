@@ -93,6 +93,7 @@ def cleanup_entity_rec(text):
 
 
 def cleanup(text):
+    # Expand contractions
     text = contractions.fix(text)
 
     # Original cleanup steps
@@ -111,31 +112,27 @@ def cleanup(text):
     text = text.replace('&#8217;', '').replace(',', '').replace('&amp;', '&')
     text = text.replace('\n', '')
 
-    # Address slangs
-    text = (text.replace('niggas', 'nigga').replace('niggaz', 'nigga')
-            .replace('yo', 'yeah')
-            .replace('yah ', 'yeah')
-            .replace('ya', 'yeah')
-            .replace('yea', 'yeah')
-            .replace('yep', 'yeah')
-            .replace('yeahhu', 'yeah')
-            .replace('yeahhur', 'yeah')
-            .replace('yeahh', 'yeah')
-            .replace('yeahhr', 'yeah')
-            .replace('yeahhh', 'yeah')
-            .replace('yeahr', 'yeah')
-            .replace('doggz', 'dogs'))
-
-    # Address synonyms and slang
     slang_dict = {
-        r'\byo\b': 'you',
+        r'\bmoth(?:a|e|er)?(?:f(?:uck|uk|unk|ck|uc|uck|ucker))?(?:a|as|az|ez|ers?|erz?|in|ing|ering|err?s?|ershit|ershit|ingshit|uckin|uckering|uckerrs|s)?\b': 'motherfucker',
+        r'\bniggas?\b': 'nigga',
+        r'\bniggaz\b': 'nigga',
+        r'\bniggaboo\b': 'nigga',
+        r'\bnigg(?:ar|ro)es\b': 'nigga',
+        r'\bnigg(?:ers|uz|ys|gie|gy)\b': 'nigga',
+        r'\bniga\b': 'nigga',
+        r'\bnigas\b': 'nigga',
+        r'\bnigg\b': 'nigga',
+        r'\byo\b': 'yeah',
         r'\byah\b': 'yeah',
-        r'\bya\b': 'you',
+        r'\bya\b': 'yeah',
         r'\byea\b': 'yeah',
-        r'\byep\b': 'yes',
+        r'\byep\b': 'yeah',
+        r'\byeahhu\b': 'yeah',
+        r'\byeahhur\b': 'yeah',
+        r'\byeahh+\b': 'yeah',
+        r'\bdoggz\b': 'dogs',
         r'\bgonna\b': 'going to',
         r'\bwanna\b': 'want to',
-        r'\bain\'t\b': 'is not',
         r'\bcuz\b': 'because',
         r'\bcoz\b': 'because',
         r'\bcause\b': 'because',
@@ -151,7 +148,7 @@ def cleanup(text):
 
     # Replace slang terms using word boundaries
     for slang, standard in slang_dict.items():
-        text = re.sub(slang, standard, text)
+        text = re.sub(slang, standard, text, flags=re.IGNORECASE)
 
     # Remove remaining special characters
     text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
@@ -159,41 +156,46 @@ def cleanup(text):
     # Tokenization
     tokens = word_tokenize(text)
 
+    # Remove tokens with numbers
+    tokens = [token for token in tokens if not any(char.isdigit() for char in token)]
+
     # Remove single letter tokens
     tokens = [token for token in tokens if len(token) > 1]
 
-    # Remove stop words
-    stop_words = set(nltk.corpus.stopwords.words('english'))
-    custom_stop_words = {'yeah', 'uh', 'oh', 'like', 'as', 'bo', ''}
-    stop_words = stop_words.union(custom_stop_words)
-    tokens = [token for token in tokens if token not in stop_words]
+    # lemmatizer = WordNetLemmatizer()
+    # tokens = [lemmatizer.lemmatize(token) for token in tokens]
 
-    # Lemmatization with POS tagging
-    lemmatizer = WordNetLemmatizer()
-    pos_tags = nltk.pos_tag(tokens)
-
-    def get_wordnet_pos(tag):
-        from nltk.corpus import wordnet
-        if tag.startswith('J'):
-            return wordnet.ADJ
-        elif tag.startswith('V'):
-            return wordnet.VERB
-        elif tag.startswith('N'):
-            return wordnet.NOUN
-        elif tag.startswith('R'):
-            return wordnet.ADV
-        else:
-            return wordnet.NOUN
-
-    tokens = [lemmatizer.lemmatize(token, get_wordnet_pos(pos)) for token, pos in pos_tags]
-
-    # Handle repeated characters
     tokens = [re.sub(r'(.)\1{2,}', r'\1\1', token) for token in tokens]
+
+    stop_words = set(nltk.corpus.stopwords.words('english'))
+    custom_stop_words = {'yeah', 'uh', 'oh', 'like', 'as', 'bo', 'ab', 'aa'}
+    stop_words = stop_words.union(custom_stop_words)
+    tokens = [token for token in tokens if token.lower() not in stop_words]
 
     # Reconstruct the text
     cleaned_text = ' '.join(tokens)
 
     return tokens, cleaned_text
+
+
+def light_preprocessing(text):
+    text = re.sub(r"\[.*?\]", "", text)  # Remove text within brackets
+    text = re.sub(r"\(.*?\)", "", text)  # Remove text within parentheses
+    text = re.sub(r'#\w+', '', text)  # Remove hashtags
+    text = re.sub(r'[“”]', '"', text)  # Normalize quotation marks
+    text = re.sub(r'[‘’]', "'", text)  # Normalize apostrophes
+    text = re.sub(r'([.!?,:;])\1+', r'\1', text)  # Remove repeated punctuation
+    text = re.sub(r'([.!?,:;])([^\s])', r'\1 \2', text)  # Add space after punctuation
+    text = re.sub(r'\s+', ' ', text).strip()  # Remove extra whitespace
+    text = text.lower()  # Convert to lowercase
+    text = text.strip('"')
+    text = text.replace('.', '').replace('-', ' ').replace("’", '')
+    text = text.replace("?", '').replace("!", '').replace("*", 'i')
+    text = text.replace('&#8217;', '').replace(',', '').replace('&amp;', '&')
+    text = text.replace('\n', '')
+    text = re.sub(r'\n+', ' ', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
 
 
 def artist_cleanup(text):
