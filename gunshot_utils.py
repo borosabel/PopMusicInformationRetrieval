@@ -7,7 +7,10 @@ import librosa
 from pydub import AudioSegment
 import re
 import ast
+import os
 import sounddevice as sd
+import json
+import minimp3py
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import roc_auc_score, roc_curve, confusion_matrix
@@ -21,7 +24,7 @@ WIN_SIZES = [0.023, 0.046, 0.093]
 N_MELS = 80
 F_MIN = 27.5
 F_MAX = 16000
-NUM_FRAMES = 86
+NUM_FRAMES = 50
 FRAME_LENGTH = HOP_LENGTH * (NUM_FRAMES - 1)
 
 
@@ -43,7 +46,8 @@ def preprocess_gunshot_times(gunshot_times, include_first_gunshot_only=False):
     except (ValueError, SyntaxError):
         return []
 
-def plot_waveform(waveform, sample_rate, vertical_lines=None):
+
+def plot_waveform(waveform, sample_rate=SAMPLING_RATE, vertical_lines=None):
     """
     Plot an audio waveform with optional vertical lines.
 
@@ -77,12 +81,12 @@ def plot_waveform(waveform, sample_rate, vertical_lines=None):
         plt.ylabel('Amplitude')
         plt.title('Waveform')
         plt.grid(True)
-        plt.show()
+        plt.show(block=False)
     except Exception as e:
         print(f"Error occurred while plotting waveform: {e}")
 
 
-def play_audio(waveform, sample_rate):
+def play_audio(waveform, sample_rate=SAMPLING_RATE):
     """
     Play an already loaded audio waveform using sounddevice.
 
@@ -108,6 +112,86 @@ def play_audio(waveform, sample_rate):
         sd.wait()
     except Exception as e:
         print(f"Error occurred while playing audio: {e}")
+
+
+def resample_and_convert_to_wav(source_folder, target_folder, target_sample_rate=SAMPLING_RATE):
+    """
+    Resample all audio files to the target sample rate and save them as WAV in the target folder.
+
+    :param source_folder: Folder containing the original audio files.
+    :param target_folder: Folder where the resampled WAV files will be saved.
+    :param target_sample_rate: The sample rate to which all audio should be resampled.
+    """
+
+    # Ensure the target directory exists
+    os.makedirs(target_folder, exist_ok=True)
+
+    # Iterate over all files in the source folder
+    for file_name in os.listdir(source_folder):
+        if file_name.endswith(".mp3") or file_name.endswith(".wav"):
+            source_file_path = os.path.join(source_folder, file_name)
+            target_file_path = os.path.join(target_folder, os.path.splitext(file_name)[0] + '.wav')
+
+            try:
+                # Load the audio file
+                audio_waveform, original_sample_rate = torchaudio.load(source_file_path)
+
+                # Resample if necessary
+                if original_sample_rate != target_sample_rate:
+                    resampler = torchaudio.transforms.Resample(orig_freq=original_sample_rate,
+                                                               new_freq=target_sample_rate)
+                    audio_waveform = resampler(audio_waveform)
+                    print(f"Resampling {file_name} from {original_sample_rate} Hz to {target_sample_rate} Hz")
+                else:
+                    print(f"Sample rate of {file_name} is already {target_sample_rate} Hz. No resampling needed.")
+
+                torchaudio.save(target_file_path, audio_waveform, target_sample_rate)
+                print(f"Saved {target_file_path}")
+
+            except Exception as e:
+                print(f"Error processing {file_name}: {e}")
+
+
+def create_metadata_map(dataset_path, save_metadata=False):
+    """
+    Creates a metadata map for WAV audio files using torchaudio.
+
+    :param dataset_path: Path to the folder containing WAV audio files.
+    :param save_metadata: Boolean indicating whether to save metadata to a JSON file.
+    :return: A dictionary containing metadata for each WAV file in the dataset.
+    """
+    metadata_map = {}
+
+    # Iterate over all files in the dataset directory
+    for file_name in os.listdir(dataset_path):
+        if file_name.endswith(".wav"):  # Only process WAV files
+            file_path = os.path.join(dataset_path, file_name)
+
+            try:
+                # Use torchaudio.info() to get file metadata
+                info = torchaudio.info(file_path)
+
+                # Calculate the duration in seconds
+                duration = info.num_frames / info.sample_rate
+
+                # Store metadata in the dictionary
+                metadata_map[file_path] = {
+                    "sample_rate": info.sample_rate,
+                    "channels": info.num_channels,
+                    "duration": duration,  # Duration in seconds
+                    "num_frames": info.num_frames
+                }
+
+            except Exception as e:
+                print(f"Error processing {file_name}: {e}")
+                continue
+
+    # Save metadata map to a JSON file if save_metadata is True
+    if save_metadata:
+        with open('metadata_map_torchaudio.json', 'w') as json_file:
+            json.dump(metadata_map, json_file)
+
+    return metadata_map
 
 
 def extract_music_segment(music_file, excerpt_len=5.0, sample_rate=44100):
@@ -137,59 +221,51 @@ def extract_music_segment(music_file, excerpt_len=5.0, sample_rate=44100):
     return music_segment, sample_rate
 
 
-def combine_music_and_gunshot(music_file, gunshot_file, gunshot_time, excerpt_len_sec=5.0, gunshot_placement_sec=2.0,
-                              gunshot_volume_increase_dB=5, sample_rate=44100, pre_gunshot_time=0.5):
+def combine_music_and_gunshot(music_waveform, gunshot_file, gunshot_time, gunshot_volume_increase_dB=5, sample_rate=44100, pre_gunshot_time=0):
     """
-    Combines a music segment with a gunshot at the specified placement time.
+    Combines a music segment with a gunshot starting at the beginning of the music waveform.
+
+    :param music_waveform: Preloaded waveform tensor of the music.
+    :param gunshot_file: Path to the gunshot audio file.
+    :param gunshot_time: Time in seconds where the gunshot occurs in the gunshot file.
+    :param gunshot_volume_increase_dB: Volume increase for the gunshot in decibels.
+    :param sample_rate: The sample rate of the audio.
+    :param pre_gunshot_time: Time in seconds to include before the gunshot.
+    :return: Combined music and gunshot waveform, sample rate.
     """
-    # --- DEALING WITH THE MUSIC FILE ---
-    music_waveform, sr = torchaudio.load(music_file)
-    if sr != sample_rate:
-        # print(f"Resampling music from {sr} Hz to {sample_rate} Hz. \n")
-        music_waveform = torchaudio.transforms.Resample(sr, sample_rate)(music_waveform)
-
-    excerpt_len_samples = int(excerpt_len_sec * sample_rate)
-
-    # Ensure the music segment is within bounds
-    total_music_samples = music_waveform.size(1)
-    max_start_sample = max(0, total_music_samples - excerpt_len_samples)
-    start_pos_music = random.randint(0, max_start_sample)
-    music_segment = music_waveform[:, start_pos_music:start_pos_music + excerpt_len_samples]
-    # --- DEALING WITH THE MUSIC FILE ---
 
     # --- DEALING WITH THE GUNSHOT FILE ---
-    # print("Loading the gunshot file...\n")
-    gunshot_waveform, sr_gunshot = torchaudio.load(gunshot_file)
-    if sr_gunshot != sample_rate:
-        # print(f"Resampling gunshot from {sr_gunshot} Hz to {sample_rate} Hz.\n")
-        gunshot_waveform = torchaudio.transforms.Resample(sr_gunshot, sample_rate)(gunshot_waveform)
+    # Load the gunshot file
+    gunshot_waveform, _ = torchaudio.load(gunshot_file)
 
+    # Extract the relevant gunshot segment based on gunshot_time and pre_gunshot_time
     if gunshot_time >= pre_gunshot_time:
         gunshot_start_sample = int((gunshot_time - pre_gunshot_time) * sample_rate)
-        gunshot_segment = gunshot_waveform[:, gunshot_start_sample:]
     else:
-        # If gunshot_time is less than the threshold, keep the entire waveform
-        gunshot_segment = gunshot_waveform
+        gunshot_start_sample = 0
+
+    # Ensure the gunshot segment length matches the music waveform length
+    music_length_samples = music_waveform.size(1)
+    gunshot_segment = gunshot_waveform[:, gunshot_start_sample:gunshot_start_sample + music_length_samples]
+
+    # If the gunshot segment is shorter than the music, pad with zeros
+    if gunshot_segment.size(1) < music_length_samples:
+        pad_length = music_length_samples - gunshot_segment.size(1)
+        gunshot_segment = th.nn.functional.pad(gunshot_segment, (0, pad_length))
 
     # Apply volume gain to gunshot
     gain_factor = 10 ** (gunshot_volume_increase_dB / 20)
     gunshot_segment *= gain_factor
 
-    # print(f"Applying a {gunshot_volume_increase_dB} dB volume increase to the gunshot.")
-
-    gunshot_placement_sample = int(gunshot_placement_sec * sample_rate)
-
-    if gunshot_placement_sample + gunshot_segment.size(1) > music_segment.size(1):
-        gunshot_segment = gunshot_segment[:, :music_segment.size(1) - gunshot_placement_sample]
-    # --- DEALING WITH THE GUNSHOT FILE ---
-
-    # Overlay the gunshot onto the music
-    combined_segment = music_segment.clone()
-    combined_segment[:, gunshot_placement_sample:gunshot_placement_sample + gunshot_segment.size(1)] += gunshot_segment
+    # --- DEALING WITH THE MUSIC AND GUNSHOT OVERLAY ---
+    # Overlay the gunshot onto the music from the beginning
+    combined_segment = music_waveform.clone()
+    combined_segment[:, :gunshot_segment.size(1)] += gunshot_segment
 
     return combined_segment, sample_rate
 
-def preprocess_audio_train(waveform, sample_rate, label, gunshot_time=None):
+
+def preprocess_audio_train(waveform, label, sample_rate=SAMPLING_RATE):
     """
     Preprocess a single audio waveform (either music with or without gunshots) to generate mel spectrograms for model training.
 
@@ -206,35 +282,44 @@ def preprocess_audio_train(waveform, sample_rate, label, gunshot_time=None):
     # print("------PREPROCESSING AUDIO DATA------")
     spectrograms = []
     labels = []
-    # print("Waveform shape: ", waveform.shape)
-    # print("Sampling rate: ", sample_rate)
-    # If it's a gunshot sample, use the select_gunshot_segment function
-    if label == 1 and gunshot_time is not None:
-        segment = select_gunshot_segment(waveform, sample_rate, gunshot_time, FRAME_LENGTH)
-    else:
-        segment = select_random_segment(waveform, sample_rate, FRAME_LENGTH)
-    # print(f"Segment shape after cutting {FRAME_LENGTH} size: {segment.shape}")
-    mel_specgram = calculate_melbands(segment[0], sample_rate)
-    # print(f"MEL SPECTOGRAM shape of the segment {mel_specgram.shape}")
+    mel_specgram = calculate_melbands(waveform[0], sample_rate)
     spectrograms.append(mel_specgram)
     labels.append(label)
     # print("------PREPROCESSING AUDIO DATA------")
     return spectrograms, labels
 
 
+def select_random_segment(file_path, metadata, frame_length=FRAME_LENGTH):
+    """
+    Select a random segment of fixed frame length from an audio file using torchaudio.
 
-def select_random_segment(waveform, sample_rate, frame_length):
-    total_duration = waveform.size(1) / sample_rate
-    segment_length = frame_length
+    :param file_path: Path to the audio file.
+    :param sample_rate: The sample rate of the audio.
+    :param frame_length: The desired number of frames to load (e.g., 44100 for 1 second at 44.1 kHz).
+    :param metadata: Metadata dictionary containing "num_frames" for the audio file.
+    :return: Loaded waveform containing the random segment of length `frame_length`.
+    """
 
-    if total_duration * sample_rate <= frame_length:
+    # Retrieve metadata for the audio file
+    total_frames = metadata["num_frames"]
+
+    # If the total number of frames is less than or equal to the frame length, load the whole file
+    if total_frames <= frame_length:
+        waveform, sr = torchaudio.load(file_path)
         return waveform
 
-    start_time = random.uniform(0, total_duration - (frame_length / sample_rate))
-    start_sample = int(start_time * sample_rate)
-    end_sample = start_sample + segment_length
+    # Calculate a random starting frame position such that the loaded segment remains within bounds
+    max_start_frame = total_frames - frame_length
+    start_frame = random.randint(0, max_start_frame)
 
-    return waveform[:, start_sample:end_sample]
+    # Load only the required segment from the audio file
+    waveform, sr = torchaudio.load(
+        file_path,
+        frame_offset=start_frame,
+        num_frames=frame_length
+    )
+
+    return waveform
 
 
 def frames_to_seconds(frame_count, sample_rate):
@@ -249,7 +334,8 @@ def frames_to_seconds(frame_count, sample_rate):
     float: The equivalent time in seconds.
     """
     seconds = frame_count / sample_rate
-    print(f"Frame count: {frame_count} Number of frames: {frame_count} corresponds to {seconds:.4f} seconds at a sample rate of {sample_rate} Hz.")
+    print(
+        f"Frame count: {frame_count} Number of frames: {frame_count} corresponds to {seconds:.4f} seconds at a sample rate of {sample_rate} Hz.")
     return seconds
 
 
@@ -292,32 +378,10 @@ def calculate_melbands(waveform, sample_rate):
         )(waveform)
         mel_specs.append(mel_spectrogram)
 
-    mel_specs = th.log10(th.stack(mel_specs) + 1e-08)  # Shape: [3, 80, NUM FRAMES]
+    mel_specs = th.log10(th.stack(mel_specs) + 1e-08)
 
-    # Calculate additional timbre features
-    waveform_np = waveform.numpy()
-    spectral_centroid = librosa.feature.spectral_centroid(y=waveform_np, sr=sample_rate)
-    spectral_bandwidth = librosa.feature.spectral_bandwidth(y=waveform_np, sr=sample_rate)
-    spectral_flatness = librosa.feature.spectral_flatness(y=waveform_np)
-    # MFCCs can be added similarly if required
+    return mel_specs
 
-    # Convert to tensors and ensure they match the shape along the time axis
-    spectral_centroid = th.tensor(spectral_centroid, dtype=th.float32).unsqueeze(0)
-    spectral_bandwidth = th.tensor(spectral_bandwidth, dtype=th.float32).unsqueeze(0)
-    spectral_flatness = th.tensor(spectral_flatness, dtype=th.float32).unsqueeze(0)
-
-    # Concatenate additional features along the feature axis
-    additional_features = th.cat([spectral_centroid, spectral_bandwidth, spectral_flatness], dim=0)  # Shape: [3, 1, 15]
-
-    # Resize additional features to match the mel spectrogram's feature dimension (if necessary)
-    additional_features = additional_features.permute(1, 0, 2)
-
-    # Ensure both tensors have the same shape along the feature and time dimensions
-    mel_specs = mel_specs.permute(1, 0, 2)  # Shape: [80, 3, 15]
-    combined_features = th.cat([mel_specs, additional_features], dim=0)
-    combined_features = combined_features.permute(1, 0, 2)
-
-    return combined_features
 
 def preprocess_audio(files):
     spectrograms = []
@@ -331,6 +395,7 @@ def preprocess_audio(files):
 
     return spectrograms, sample_rates
 
+
 def compute_mean_std(dataloader):
     l = []
     for features, _ in tqdm(dataloader, desc="Computing mean and std"):
@@ -340,8 +405,8 @@ def compute_mean_std(dataloader):
     std = th.std(tmp, dim=(0, 2)).unsqueeze(1)
     return mean, std
 
-def extract_sample_at_time(audio_path, start_time_sec, frame_size=NUM_FRAMES, hop_length=HOP_LENGTH):
 
+def extract_sample_at_time(audio_path, start_time_sec, frame_size=NUM_FRAMES, hop_length=HOP_LENGTH):
     # Load the full audio file
     audio = AudioSegment.from_file(audio_path)
 
@@ -369,6 +434,7 @@ def extract_sample_at_time(audio_path, start_time_sec, frame_size=NUM_FRAMES, ho
 device = th.device("cuda" if th.cuda.is_available() else "cpu")
 use_cuda = th.cuda.is_available()
 
+
 def train_model(model, optimizer, criterion, train_loader, valid_loader, epochs=10, mean=None, std=None, patience=3):
     if mean is None or std is None:
         raise ValueError("Mean and std must be provided for normalization.")
@@ -389,7 +455,7 @@ def train_model(model, optimizer, criterion, train_loader, valid_loader, epochs=
         running_loss = 0.0
 
         # Add tqdm progress bar for training loop
-        train_loader_tqdm = tqdm(train_loader, desc=f"Epoch [{epoch+1}/{epochs}] Training")
+        train_loader_tqdm = tqdm(train_loader, desc=f"Epoch [{epoch + 1}/{epochs}] Training")
 
         for features, labels in train_loader_tqdm:
             features, labels = features.to(device), labels.to(device).float().to(device)
@@ -415,7 +481,7 @@ def train_model(model, optimizer, criterion, train_loader, valid_loader, epochs=
             train_loader_tqdm.set_postfix(loss=loss.item())
 
         epoch_loss = running_loss / len(train_loader.dataset)
-        print(f"Epoch [{epoch+1}/{epochs}], Loss: {epoch_loss:.4f}")
+        print(f"Epoch [{epoch + 1}/{epochs}], Loss: {epoch_loss:.4f}")
 
         model.eval()
         val_score = evaluate_model_simple(model, valid_loader, mean, std)
@@ -444,7 +510,6 @@ def train_model(model, optimizer, criterion, train_loader, valid_loader, epochs=
 
 
 def evaluate_model_simple(model, valid_loader, mean, std):
-
     all_outputs = []
     all_labels = []
 
@@ -465,8 +530,8 @@ def evaluate_model_simple(model, valid_loader, mean, std):
     print(f"Validation ROC AUC: {auc:.4f}")
     return auc
 
-def find_optimal_threshold_after_training(model, valid_loader, mean, std):
 
+def find_optimal_threshold_after_training(model, valid_loader, mean, std):
     all_outputs = []
     all_labels = []
 
@@ -492,6 +557,7 @@ def find_optimal_threshold_after_training(model, valid_loader, mean, std):
 
     print(f"Optimal threshold found: {optimal_threshold:.4f}")
     return optimal_threshold
+
 
 def compute_confusion_matrix(model, valid_loader, threshold, mean, std):
     """
@@ -529,6 +595,7 @@ def compute_confusion_matrix(model, valid_loader, threshold, mean, std):
     cm = confusion_matrix(all_labels, predictions)
 
     return cm
+
 
 def display_confusion_matrix(cm):
     """
