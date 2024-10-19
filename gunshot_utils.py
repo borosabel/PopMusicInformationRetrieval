@@ -114,42 +114,67 @@ def play_audio(waveform, sample_rate=SAMPLING_RATE):
         print(f"Error occurred while playing audio: {e}")
 
 
-def resample_and_convert_to_wav(source_folder, target_folder, target_sample_rate=SAMPLING_RATE):
+def resample_and_convert_to_wav(df, source_column, target_folder, target_sample_rate=44100, limit=None):
     """
-    Resample all audio files to the target sample rate and save them as WAV in the target folder.
+    Resample all audio files in the DataFrame to the target sample rate and save them as WAV in the target folder.
 
-    :param source_folder: Folder containing the original audio files.
+    :param df: DataFrame containing the file paths to the original audio files.
+    :param source_column: The column in the DataFrame that contains the file paths.
     :param target_folder: Folder where the resampled WAV files will be saved.
     :param target_sample_rate: The sample rate to which all audio should be resampled.
+    :param limit: Optional. The maximum number of audio files to process.
+    :return: DataFrame with updated file paths, sample rates, and file extensions.
     """
 
     # Ensure the target directory exists
     os.makedirs(target_folder, exist_ok=True)
 
-    # Iterate over all files in the source folder
-    for file_name in os.listdir(source_folder):
-        if file_name.endswith(".mp3") or file_name.endswith(".wav"):
-            source_file_path = os.path.join(source_folder, file_name)
-            target_file_path = os.path.join(target_folder, os.path.splitext(file_name)[0] + '.wav')
+    # Apply the limit if provided
+    if limit:
+        df = df.head(limit)
 
-            try:
-                # Load the audio file
-                audio_waveform, original_sample_rate = torchaudio.load(source_file_path)
+    # Lists to store the updated file paths and sample rates
+    updated_paths = []
+    updated_sample_rates = []
 
-                # Resample if necessary
-                if original_sample_rate != target_sample_rate:
-                    resampler = torchaudio.transforms.Resample(orig_freq=original_sample_rate,
-                                                               new_freq=target_sample_rate)
-                    audio_waveform = resampler(audio_waveform)
-                    print(f"Resampling {file_name} from {original_sample_rate} Hz to {target_sample_rate} Hz")
-                else:
-                    print(f"Sample rate of {file_name} is already {target_sample_rate} Hz. No resampling needed.")
+    # Iterate over all file paths in the DataFrame with tqdm progress bar
+    for index, row in tqdm(df.iterrows(), total=df.shape[0], desc="Processing audio files"):
+        source_file_path = row[source_column]
+        file_name = os.path.basename(source_file_path)
+        target_file_path = os.path.join(target_folder, os.path.splitext(file_name)[0] + '.wav')
 
-                torchaudio.save(target_file_path, audio_waveform, target_sample_rate)
-                print(f"Saved {target_file_path}")
+        try:
+            # Load the audio file
+            audio_waveform, original_sample_rate = torchaudio.load(source_file_path)
 
-            except Exception as e:
-                print(f"Error processing {file_name}: {e}")
+            # Resample if necessary
+            if original_sample_rate != target_sample_rate:
+                resampler = torchaudio.transforms.Resample(orig_freq=original_sample_rate,
+                                                           new_freq=target_sample_rate)
+                audio_waveform = resampler(audio_waveform)
+                updated_sample_rate = target_sample_rate
+            else:
+                updated_sample_rate = original_sample_rate
+
+            # Save the resampled audio file as WAV in the target folder
+            torchaudio.save(target_file_path, audio_waveform, target_sample_rate)
+
+            # Append the new file path and sample rate to the lists
+            updated_paths.append(target_file_path)
+            updated_sample_rates.append(updated_sample_rate)
+
+        except Exception as e:
+            tqdm.write(f"Error processing {file_name}: {e}")
+            updated_paths.append(None)  # In case of error, append None for that file
+            updated_sample_rates.append(None)  # In case of error, append None for the sample rate
+
+    df['Path'] = updated_paths
+    df['Sample Rate (Hz)'] = updated_sample_rates
+    df = df.dropna(subset=['Path'])
+
+    df['file_extension'] = '.wav'
+
+    return df
 
 
 def create_metadata_map(dataset_path, save_metadata=False):
@@ -608,3 +633,37 @@ def display_confusion_matrix(cm):
     disp.plot(cmap='magma')
     plt.title('Confusion Matrix')
     plt.show()
+
+#######################################################################################
+
+
+def calculate_loudness(audio_path):
+    """
+    Calculate the average loudness of an audio file in decibels.
+
+    :param audio_path: Path to the audio file.
+    :return: Loudness in decibels.
+    """
+    y, sr = librosa.load(audio_path, sr=None)
+    rms = librosa.feature.rms(y=y)
+    rms_db = librosa.amplitude_to_db(rms, ref=np.max)
+    avg_loudness = rms_db.mean()
+    return avg_loudness
+
+def filter_by_firearm(df, gun_types):
+    """
+    Filters the dataset to include only rows where the firearm contains any of the specified gun types (partial match).
+
+    :param df: The input DataFrame containing the 'firearm' column.
+    :param gun_types: A list of gun types to filter for (partial match).
+    :return: A filtered DataFrame containing only rows with the specified gun types.
+    """
+    # Combine all conditions for partial matching
+    mask = df['firearm'].str.lower().str.contains(gun_types[0].lower())
+    for gun in gun_types[1:]:
+        mask |= df['firearm'].str.lower().str.contains(gun.lower())
+
+    # Filter the DataFrame based on the combined mask
+    filtered_df = df[mask]
+
+    return filtered_df
