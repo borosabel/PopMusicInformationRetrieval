@@ -1,4 +1,6 @@
 import random
+from time import sleep
+
 import numpy as np
 import torchaudio
 import torch as th
@@ -24,7 +26,7 @@ WIN_SIZES = [0.023, 0.046, 0.093]
 N_MELS = 80
 F_MIN = 27.5
 F_MAX = 16000
-NUM_FRAMES = 50
+NUM_FRAMES = 100
 FRAME_LENGTH = HOP_LENGTH * (NUM_FRAMES - 1)
 
 
@@ -273,7 +275,6 @@ def combine_music_and_gunshot(music_waveform, gunshot_file, gunshot_time, gunsho
     music_length_samples = music_waveform.size(1)
     gunshot_segment = gunshot_waveform[:, gunshot_start_sample:gunshot_start_sample + music_length_samples]
 
-    # If the gunshot segment is shorter than the music, pad with zeros
     if gunshot_segment.size(1) < music_length_samples:
         pad_length = music_length_samples - gunshot_segment.size(1)
         gunshot_segment = th.nn.functional.pad(gunshot_segment, (0, pad_length))
@@ -639,16 +640,64 @@ def display_confusion_matrix(cm):
 
 def calculate_loudness(audio_path):
     """
-    Calculate the average loudness of an audio file in decibels.
+    Calculate the maximum loudness of an audio file in decibels.
 
     :param audio_path: Path to the audio file.
-    :return: Loudness in decibels.
+    :return: Maximum loudness in decibels.
     """
-    y, sr = librosa.load(audio_path, sr=None)
-    rms = librosa.feature.rms(y=y)
-    rms_db = librosa.amplitude_to_db(rms, ref=np.max)
-    avg_loudness = rms_db.mean()
-    return avg_loudness
+    try:
+        # Load the audio file with librosa
+        y, sr = librosa.load(audio_path, sr=None)
+
+        # Calculate the RMS (Root Mean Square) energy of the entire audio signal
+        rms = librosa.feature.rms(y=y)
+
+        # Convert RMS to decibels using a fixed reference (e.g., ref=1.0)
+        rms_db = librosa.amplitude_to_db(rms, ref=1.0)
+
+        # Take the maximum loudness value
+        max_loudness = rms_db.max()
+
+        return max_loudness
+
+    except Exception as e:
+        print(f"Error calculating loudness for {audio_path}: {e}")
+        return None
+
+def filter_loud_gunshots(df, filepath_column, loudness_threshold):
+    """
+    Filters the dataset to include only rows where the gunshot audio file exceeds the given loudness threshold.
+
+    :param df: DataFrame containing the file paths to the audio files.
+    :param filepath_column: The column in the DataFrame that contains the file paths.
+    :param loudness_threshold: The loudness threshold in decibels.
+    :return: Filtered DataFrame containing only rows with loud gunshots.
+    """
+    # List to store the maximum loudness values
+    loudness_values = []
+
+    # Calculate the maximum loudness for each audio file in the DataFrame
+    for index, row in df.iterrows():
+        audio_path = row[filepath_column]
+        try:
+            max_loudness = calculate_loudness(audio_path)
+            print(max_loudness)
+            loudness_values.append(max_loudness)
+        except Exception as e:
+            # In case of an error, set loudness to None
+            print(f"Error processing {audio_path}: {e}")
+            loudness_values.append(None)
+
+    # Add the loudness values to the DataFrame
+    df['Max Loudness (dB)'] = loudness_values
+
+    # Drop rows where loudness could not be calculated (None values)
+    df = df.dropna(subset=['Max Loudness (dB)'])
+
+    # Filter rows where the maximum loudness is greater than or equal to the threshold
+    filtered_df = df[df['Max Loudness (dB)'] >= loudness_threshold]
+
+    return filtered_df
 
 def filter_by_firearm(df, gun_types):
     """
