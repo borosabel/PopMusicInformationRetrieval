@@ -9,6 +9,7 @@ import re
 import contractions
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
+from collections import Counter
 import nltk
 
 nlp = spacy.load('en_core_web_sm')
@@ -91,6 +92,37 @@ def cleanup_entity_rec(text):
 
     return text
 
+def filter_tokens_by_document_frequency(df, column_name, min_doc_frequency=0.05, max_doc_frequency=0.85):
+    """
+    Filters tokens by their document frequency.
+
+    :param df: DataFrame with a column of token lists.
+    :param column_name: The name of the column containing the token lists.
+    :param min_doc_frequency: Minimum percentage of documents a token should be in (0 to 1).
+    :param max_doc_frequency: Maximum percentage of documents a token can be in (0 to 1).
+    :return: Filtered list of tokens for each row in the DataFrame.
+    """
+    num_documents = len(df)
+
+    # Flatten the token lists to count document frequency of each token
+    token_document_count = Counter()
+    for tokens in df[column_name]:
+        unique_tokens_in_doc = set(tokens)  # Get unique tokens per document to count once per doc
+        token_document_count.update(unique_tokens_in_doc)
+
+    # Calculate document frequency thresholds
+    min_docs = min_doc_frequency * num_documents
+    max_docs = max_doc_frequency * num_documents
+
+    # Create a list of tokens that meet the document frequency criteria
+    filtered_tokens = {token for token, count in token_document_count.items() if min_docs <= count <= max_docs}
+
+    # Filter the tokens in each document based on the criteria
+    df[column_name] = df[column_name].apply(lambda tokens: [token for token in tokens if token in filtered_tokens])
+
+    return df
+
+
 
 def cleanup(text):
     # Expand contractions
@@ -115,7 +147,25 @@ def cleanup(text):
     slang_dict = {
         r'\bmoth(?:a|e|er)?(?:f(?:uck|uk|unk|ck|uc|uck|ucker))?(?:a|as|az|ez|ers?|erz?|in|ing|ering|err?s?|ershit|ershit|ingshit|uckin|uckering|uckerrs|s)?\b': 'motherfucker',
         r'\bniggas?\b': 'nigga',
+        r'\bniggas\b': 'nigga',
+        r'\bniggaa\b': 'nigga',
+        r'\bactin\b': 'act',
         r'\bniggaz\b': 'nigga',
+        r'\bblunts\b': 'blunt',
+        r'\bbodies\b': 'body',
+        r'\bboots\b': 'boot',
+        r'\bboys\b': 'boy',
+        r'\bcalled\b': 'call',
+        r'\bcars\b': 'car',
+        r'\bcats\b': 'cat',
+        r'\bchanged\b': 'change',
+        r'\bcmon\b': 'come on',
+        r'\bcomes\b': 'come',
+        r'\bcuts\b': 'cut',
+        r'\bdropped\b': 'drop',
+        r'\bears\b': 'ear',
+        r'\bends\b': 'end',
+        r'\benemies\b': 'enemy',
         r'\bniggaboo\b': 'nigga',
         r'\bnigg(?:ar|ro)es\b': 'nigga',
         r'\bnigg(?:ers|uz|ys|gie|gy)\b': 'nigga',
@@ -123,11 +173,177 @@ def cleanup(text):
         r'\bnigas\b': 'nigga',
         r'\bnigg\b': 'nigga',
         r'\byo\b': 'yeah',
+        r'\baiyyo\b': 'yeah',
+        r'\bayo\b': 'yeah',
+        r'\baight\b': 'alright',
+        r'\bbitches\b': 'bitch',
+        r'\bbrains\b': 'bitch',
+        r'\bbreakin\b': 'break',
+        r'\bbullets\b': 'bullet',
+        r'\bcheckin\b': 'check',
         r'\byah\b': 'yeah',
         r'\bya\b': 'yeah',
         r'\byea\b': 'yeah',
+        r'\bblowin\b': 'blow',
+        r'\bworkin\b': 'work',
+        r'\bwatchin\b': 'watch',
+        r'\bwalkin\b': 'walk',
+        r'\bwaitin\b': 'wait',
+        r'\bbustin\b': 'bust',
+        r'\btryin\b': 'try',
+        r'\btrippin\b': 'trip',
+        r'\bcallin\b': 'call',
+        r'\bchillin\b': 'chill',
+        r'\bcomin\b': 'come',
+        r'\bcoming\b': 'come',
         r'\byep\b': 'yeah',
+        r'\bcops\b': 'cop',
+        r'\bdogg\b': 'dog',
+        r'\bcrews\b': 'crew',
+        r'\bdied\b': 'die',
+        r'\bdogs\b': 'dog',
+        r'\bdollars\b': 'dollar',
+        r'\bdreams\b': 'dream',
+        r'\bdrugs\b': 'drug',
+        r'\bfacts\b': 'fact',
+        r'\beyes\b': 'eye',
+        r'\bdays\b': 'day',
+        r'\bnuts\b': 'nut',
+        r'\bok\b': 'okay',
+        r'\bones\b': 'one',
+        r'\bpeoples\b': 'people',
+        r'\bplayed\b': 'play',
+        r'\bplaying\b': 'play',
+        r'\bplayers\b': 'play',
+        r'\bpockets\b': 'pocket',
+        r'\bpoppin\b': 'pop',
+        r'\bpops\b': 'pop',
+        r'\bpulled\b': 'pull',
+        r'\bpumpin\b': 'pump',
+        r'\bpunks\b': 'punk',
+        r'\bputtin\b': 'put',
+        r'\braised\b': 'raise',
+        r'\brappers\b': 'rap',
+        r'\brappin\b': 'rap',
+        r'\brecords\b': 'record',
+        r'\brhymes\b': 'rhyme',
+        r'\brockin\b': 'rock',
+        r'\brules\b': 'rule',
+        r'\brunnin\b': 'run',
+        r'\brunning\b': 'run',
+        r'\bsaying\b': 'say',
+        r'\bsays\b': 'say',
+        r'\bseems\b': 'seem',
+        r'\bshits\b': 'shit',
+        r'\bshorty\b': 'short',
+        r'\bsmoked\b': 'smoke',
+        r'\bsmoking\b': 'smoke',
+        r'\bsongs\b': 'song',
+        r'\bsounds\b': 'sound',
+        r'\bstarted\b': 'start',
+        r'\bstarts\b': 'start',
+        r'\bstreets\b': 'street',
+        r'\bsuckers\b': 'sucker',
+        r'\btakes\b': 'take',
+        r'\btakin\b': 'take',
+        r'\btaking\b': 'take',
+        r'\btha\b': 'the',
+        r'\bthoughts\b': 'thought',
+        r'\bthugs\b': 'thug',
+        r'\btimes\b': 'time',
+        r'\btracks\b': 'track',
+        r'\btricks\b': 'trick',
+        r'\bused\b': 'use',
+        r'\bways\b': 'way',
+        r'\bwomen\b': 'woman',
+        r'\bwords\b': 'word',
+        r'\byears\b': 'year',
+        r'\bfeelin\b': 'feel',
+        r'\bfeeling\b': 'feel',
+        r'\bfingers\b': 'finger',
+        r'\bfools\b': 'fool',
+        r'\bgoes\b': 'go',
+        r'\bgoin\b': 'go',
+        r'\bgoing\b': 'go',
+        r'\bhangin\b': 'hang',
+        r'\bhittin\b': 'hit',
+        r'\bholdin\b': 'hold',
+        r'\bhomies\b': 'homie',
+        r'\bhomeboy\b': 'homie',
+        r'\bhomeboys\b': 'homie',
+        r'\bflippin\b': 'flip',
+        r'\bdoin\b': 'doing',
+        r'\bdrinkin\b': 'drink',
+        r'\bfreaks\b': 'freak',
+        r'\bfucked\b': 'fuck',
+        r'\bfuckin\b': 'fuck',
+        r'\bgettin\b': 'get',
+        r'\bgetting\b': 'get',
+        r'\bfucking\b': 'fuck',
+        r'\bkeepin\b': 'keep',
+        r'\bkicked\b': 'kick',
+        r'\bkickin\b': 'kick',
+        r'\bkeys\b': 'key',
+        r'\bkilled\b': 'kill',
+        r'\bkillin\b': 'kill',
+        r'\bkills\b': 'kill',
+        r'\bknowin\b': 'know',
+        r'\bnothin\b': 'nothing',
+        r'\bnuttin\b': 'nothing',
+        r'\bplayin\b': 'playing',
+        r'\brings\b': 'ring',
+        r'\bridin\b': 'ride',
+        r'\brollin\b': 'roll',
+        r'\brolling\b': 'roll',
+        r'\brolled\b': 'roll',
+        r'\brippin\b': 'rip',
+        r'\bsayin\b': 'saying',
+        r'\bscreamin\b': 'scream',
+        r'\bseein\b': 'see',
+        r'\bsellin\b': 'sell',
+        r'\bshootin\b': 'shoot',
+        r'\bshots\b': 'shot',
+        r'\bsippin\b': 'sip',
+        r'\bsittin\b': 'sit',
+        r'\bsmokin\b': 'smoke',
+        r'\bsomethin\b': 'something',
+        r'\btalking\b': 'talk',
+        r'\bthings\b': 'thing',
+        r'\bthinking\b': 'think',
+        r'\btrying\b': 'try',
+        r'\bwalked\b': 'walk',
+        r'\bwalking\b': 'walk',
+        r'\bknown\b': 'know',
+        r'\bknows\b': 'know',
+        r'\bladies\b': 'lady',
+        r'\blayin\b': 'lay',
+        r'\bleavin\b': 'leave',
+        r'\blines\b': 'line',
+        r'\blives\b': 'live',
+        r'\blivin\b': 'live',
+        r'\bliving\b': 'live',
+        r'\blooked\b': 'look',
+        r'\blookin\b': 'look',
+        r'\blooking\b': 'look',
+        r'\blooks\b': 'look',
+        r'\bmakes\b': 'make',
+        r'\bmakin\b': 'make',
+        r'\bmaking\b': 'make',
+        r'\bmoves\b': 'move',
+        r'\bmovin\b': 'move',
+        r'\bgivin\b': 'give',
+        r'\bgiving\b': 'give',
+        r'\bgangsta\b': 'gangster',
+        r'\bthrowin\b': 'throw',
+        r'\bthinkin\b': 'think',
+        r'\btellin\b': 'tell',
+        r'\btalkin\b': 'talk',
+        r'\bsteppin\b': 'step',
+        r'\bstandin\b': 'stand',
+        r'\bdroppin\b': 'drop',
         r'\byeahhu\b': 'yeah',
+        r'\bbrothers\b': 'brother',
+        r'\bbein\b': 'be',
         r'\byeahhur\b': 'yeah',
         r'\byeahh+\b': 'yeah',
         r'\bdoggz\b': 'dogs',
@@ -141,9 +357,37 @@ def cleanup(text):
         r'\boutta\b': 'out of',
         r'\blotta\b': 'lot of',
         r'\blemme\b': 'let me',
+        r'\bcmon\b': 'come on',
+        r'\bfiends\b': 'fiend',
+        r'\bflows\b': 'flow',
+        r'\bgames\b': 'game',
+        r'\bgirls\b': 'girl',
+        r'\bgots\b': 'got',
+        r'\bguns\b': 'gun',
+        r'\bguys\b': 'guy',
+        r'\bhands\b': 'hand',
+        r'\bhappened\b': 'happen',
+        r'\bheaded\b': 'head',
+        r'\bheads\b': 'head',
+        r'\bhits\b': 'hit',
+        r'\bhoes\b': 'hoe',
+        r'\bkeeps\b': 'keep',
+        r'\bknocked\b': 'knock',
+        r'\blights\b': 'light',
+        r'\bmans\b': 'man',
+        r'\bmcs\b': 'mc',
+        r'\bmeans\b': 'mean',
+        r'\bmics\b': 'mic',
+        r'\bminds\b': 'mind',
+        r'\bmomma\b': 'mom',
+        r'\bmoms\b': 'mom',
         r'\bgimme\b': 'give me',
         r'\bain\'t\b': 'is not',
         r'\bimma\b': 'i am going to',
+        r'\baccordin\b': 'according',
+        r'\bacapella\b': 'a cappella',
+        r'\baand\b': 'and',
+        r'\baant\b': 'want',
     }
 
     # Replace slang terms using word boundaries
@@ -168,7 +412,8 @@ def cleanup(text):
     tokens = [re.sub(r'(.)\1{2,}', r'\1\1', token) for token in tokens]
 
     stop_words = set(nltk.corpus.stopwords.words('english'))
-    custom_stop_words = {'yeah', 'uh', 'oh', 'like', 'as', 'bo', 'ab', 'aa'}
+    custom_stop_words = {'yeah', 'uh', 'oh', 'like', 'as', 'bo', 'ab', 'aa', "aaghh", "aah", "aahh", "aaooww", "aaw", "acabe",
+                         "abster", "ah", 'boo', 'da', 'de', 'fo', 'huh', 'ha', 'ho', 'mo', 'ooh', 'ta', 'uhh'}
     stop_words = stop_words.union(custom_stop_words)
     tokens = [token for token in tokens if token.lower() not in stop_words]
 
@@ -187,7 +432,7 @@ def light_preprocessing(text):
     text = re.sub(r'([.!?,:;])\1+', r'\1', text)  # Remove repeated punctuation
     text = re.sub(r'([.!?,:;])([^\s])', r'\1 \2', text)  # Add space after punctuation
     text = re.sub(r'\s+', ' ', text).strip()  # Remove extra whitespace
-    text = text.lower()  # Convert to lowercase
+    text = text.lower()
     text = text.strip('"')
     text = text.replace('.', '').replace('-', ' ').replace("’", '')
     text = text.replace("?", '').replace("!", '').replace("*", 'i')
