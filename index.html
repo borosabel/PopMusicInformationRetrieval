@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Audio Tagging Tool</title>
+    <style>
+      #waveform {
+        width: 100%;
+        height: 128px;
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Audio Tagging Tool</h1>
+
+    <!-- Waveform container -->
+    <div id="waveform"></div>
+
+    <!-- Controls -->
+    <p>
+      <button id="mark-region">Mark Region</button>
+      <button id="export-regions">Export Regions</button>
+    </p>
+
+    <!-- File input for loading multiple tracks -->
+    <input type="file" id="fileInput" accept="audio/*" multiple />
+
+    <!-- Include Wavesurfer.js and Regions plugin from CDN -->
+    <script src="https://unpkg.com/wavesurfer.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugins/regions.min.js"></script>
+
+    <script>
+      // Initialize Wavesurfer with Regions plugin
+      const wavesurfer = WaveSurfer.create({
+        container: "#waveform",
+        waveColor: "violet",
+        progressColor: "purple",
+        height: 100,
+        plugins: [WaveSurfer.regions.create()],
+      });
+
+      // Function to generate random color for regions
+      const randomColor = () =>
+        `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${
+          Math.random() * 255
+        }, 0.5)`;
+
+      // Handle file selection and load into Wavesurfer
+      document
+        .getElementById("fileInput")
+        .addEventListener("change", function (event) {
+          const files = event.target.files;
+          if (files.length > 0) {
+            const fileURL = URL.createObjectURL(files[0]);
+            wavesurfer.load(fileURL);
+          }
+        });
+
+      // Mark region when button is clicked
+      document
+        .getElementById("mark-region")
+        .addEventListener("click", function () {
+          const currentTime = wavesurfer.getCurrentTime();
+          // Mark a region from the current time to 2 seconds later (adjust as needed)
+          wavesurfer.addRegion({
+            start: currentTime,
+            end: currentTime + 2, // Example: 2 seconds duration
+            color: randomColor(),
+          });
+        });
+
+      // Export all regions (start and end times) to JSON
+      document
+        .getElementById("export-regions")
+        .addEventListener("click", function () {
+          const regions = wavesurfer.regions.list;
+          const regionData = [];
+
+          Object.keys(regions).forEach((id) => {
+            const region = regions[id];
+            regionData.push({
+              start: region.start,
+              end: region.end,
+              color: region.color,
+            });
+          });
+
+          // Create a JSON file and download it
+          const blob = new Blob([JSON.stringify(regionData, null, 2)], {
+            type: "application/json",
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "regions.json";
+          a.click();
+        });
+    </script>
+  </body>
+</html>

@@ -1,6 +1,4 @@
 import random
-from time import sleep
-
 import numpy as np
 import torchaudio
 import torch as th
@@ -12,11 +10,14 @@ import ast
 import os
 import sounddevice as sd
 import json
-import minimp3py
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import roc_auc_score, roc_curve, confusion_matrix
+from sklearn.metrics import roc_curve
 from sklearn.metrics import ConfusionMatrixDisplay
+from sklearn.metrics import (
+    roc_auc_score, confusion_matrix, precision_score,
+    recall_score, f1_score, average_precision_score,
+)
 
 SAMPLING_RATE = 44100
 HOP_LENGTH = 512
@@ -26,7 +27,7 @@ WIN_SIZES = [0.023, 0.046, 0.093]
 N_MELS = 80
 F_MIN = 27.5
 F_MAX = 16000
-NUM_FRAMES = 100
+NUM_FRAMES = 70
 FRAME_LENGTH = HOP_LENGTH * (NUM_FRAMES - 1)
 
 
@@ -248,7 +249,7 @@ def extract_music_segment(music_file, excerpt_len=5.0, sample_rate=44100):
     return music_segment, sample_rate
 
 
-def combine_music_and_gunshot(music_waveform, gunshot_file, gunshot_time, gunshot_volume_increase_dB=5, sample_rate=44100, pre_gunshot_time=0):
+def combine_music_and_gunshot(music_waveform, gunshot_file, gunshot_time, gunshot_volume_increase_dB=8, sample_rate=44100, pre_gunshot_time=0):
     """
     Combines a music segment with a gunshot starting at the beginning of the music waveform.
 
@@ -461,14 +462,15 @@ device = th.device("cuda" if th.cuda.is_available() else "cpu")
 use_cuda = th.cuda.is_available()
 
 
-def train_model(model, optimizer, criterion, train_loader, valid_loader, epochs=10, mean=None, std=None, patience=3):
+def train_model(model, optimizer, criterion, train_loader, valid_loader, max_iterations=1000, mean=None, std=None, patience=3, eval_metric='f1'):
     if mean is None or std is None:
         raise ValueError("Mean and std must be provided for normalization.")
 
     mean = mean.to(device)
     std = std.to(device)
     model = model.to(device)
-    best_score = 0.0
+    best_score = 0.0  # Could be based on F1-score or another metric
+    best_threshold = 0.5  # Default threshold
     epochs_since_improvement = 0
 
     if use_cuda:
@@ -476,14 +478,21 @@ def train_model(model, optimizer, criterion, train_loader, valid_loader, epochs=
     else:
         scaler = None
 
-    for epoch in range(epochs):
+    total_iterations = 0
+    epoch = 0
+
+    while total_iterations < max_iterations:
         model.train()
         running_loss = 0.0
 
-        # Add tqdm progress bar for training loop
-        train_loader_tqdm = tqdm(train_loader, desc=f"Epoch [{epoch + 1}/{epochs}] Training")
+        epoch += 1
+        train_loader_tqdm = tqdm(train_loader, desc=f"Epoch [{epoch}] Training")
 
         for features, labels in train_loader_tqdm:
+            if total_iterations >= max_iterations:
+                print(f"Reached max iterations: {max_iterations}. Stopping training.")
+                break
+
             features, labels = features.to(device), labels.to(device).float().to(device)
             optimizer.zero_grad()
             features = (features - mean) / std
@@ -502,40 +511,35 @@ def train_model(model, optimizer, criterion, train_loader, valid_loader, epochs=
                 optimizer.step()
 
             running_loss += loss.item() * features.size(0)
+            total_iterations += 1
 
             # Update tqdm description with current loss
             train_loader_tqdm.set_postfix(loss=loss.item())
 
         epoch_loss = running_loss / len(train_loader.dataset)
-        print(f"Epoch [{epoch + 1}/{epochs}], Loss: {epoch_loss:.4f}")
+        print(f"Epoch [{epoch}], Loss: {epoch_loss:.4f}")
 
         model.eval()
-        val_score = evaluate_model_simple(model, valid_loader, mean, std)
+        eval_score = evaluate_model_simple(model, valid_loader, mean, std, metric=eval_metric)
 
-        if val_score > best_score:
-            best_score = val_score
+        # Choose the metric you care most about to decide if the model improved
+        if eval_score > best_score:
+            best_score = eval_score
             epochs_since_improvement = 0
-            print(f"New best ROC AUC score: {best_score:.4f}, model saved.")
+            print(f"New best {eval_metric}: {best_score:.4f}, model saved.")
             # Save the model if desired
             # torch.save(model.state_dict(), 'best_model.pth')
         else:
             epochs_since_improvement += 1
 
         if epochs_since_improvement >= patience:
-            print(f"No improvement in ROC AUC score for {patience} epochs. Stopping training.")
+            print(f"No improvement in {eval_metric} for {patience} epochs. Stopping training.")
             break
-
-    # After training, find the optimal threshold
-    best_threshold = find_optimal_threshold_after_training(model, valid_loader, mean, std)
-
-    # Compute and display the confusion matrix
-    cm = compute_confusion_matrix(model, valid_loader, best_threshold, mean, std)
-    display_confusion_matrix(cm)
 
     return best_threshold, best_score
 
 
-def evaluate_model_simple(model, valid_loader, mean, std):
+def evaluate_model_simple(model, valid_loader, mean, std, metric='f1'):
     all_outputs = []
     all_labels = []
 
@@ -552,9 +556,42 @@ def evaluate_model_simple(model, valid_loader, mean, std):
 
     all_outputs = np.concatenate(all_outputs)
     all_labels = np.concatenate(all_labels)
-    auc = roc_auc_score(all_labels, all_outputs)
-    print(f"Validation ROC AUC: {auc:.4f}")
-    return auc
+
+    # Compute optimal threshold using Youden's J statistic
+    fpr, tpr, thresholds = roc_curve(all_labels, all_outputs)
+    youdens_j = tpr - fpr
+    idx = np.argmax(youdens_j)
+    optimal_threshold = thresholds[idx]
+    print(f"Optimal threshold: {optimal_threshold:.4f}")
+
+    # Binarize outputs based on the optimal threshold
+    binary_outputs = (all_outputs >= optimal_threshold).astype(int)
+
+    # Calculate the requested metric
+    if metric == 'f1':
+        value = f1_score(all_labels, binary_outputs)
+
+    elif metric == 'precision':
+        value = precision_score(all_labels, binary_outputs)
+
+    elif metric == 'recall':
+        value = recall_score(all_labels, binary_outputs)
+
+    elif metric == 'specificity':
+        cm = confusion_matrix(all_labels, binary_outputs)
+        tn, fp, _, _ = cm.ravel()
+        value = tn / (tn + fp)
+
+    elif metric == 'roc_auc':
+        value = roc_auc_score(all_labels, all_outputs)
+
+    elif metric == 'average_precision':
+        value = average_precision_score(all_labels, all_outputs)
+
+    else:
+        raise ValueError(f"Unknown metric: {metric}. Please choose from 'f1', 'precision', 'recall', 'specificity', 'roc_auc', 'average_precision'.")
+
+    return value
 
 
 def find_optimal_threshold_after_training(model, valid_loader, mean, std):
