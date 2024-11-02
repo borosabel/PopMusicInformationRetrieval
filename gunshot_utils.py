@@ -69,6 +69,41 @@ def plot_spectrogram_channels(spectrogram):
     plt.show()
 
 
+def build_music_onset_dataframe(folder_path):
+    data = {
+        'file_path': [],
+        'onsets_in_seconds': [],
+        'num_onsets': []
+    }
+
+    # Iterate through all the files in the folder
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            if file.endswith('.wav'):
+                file_path = os.path.join(root, file)
+
+                try:
+                    # Load the audio file
+                    y, sr = librosa.load(file_path, sr=None)
+
+                    # Calculate onsets
+                    onset_frames = librosa.onset.onset_detect(y=y, sr=sr)
+                    onset_times = librosa.frames_to_time(onset_frames, sr=sr)
+
+                    # Append data to the dictionary
+                    data['file_path'].append(file_path)
+                    data['onsets_in_seconds'].append(onset_times.tolist())
+                    data['num_onsets'].append(len(onset_times))
+
+                except Exception as e:
+                    print(f"Error processing {file_path}: {e}")
+
+    # Create the dataframe
+    df = pd.DataFrame(data)
+
+    return df
+
+
 def plot_spectrogram_channels_two_rows(spectogram_onset, spectogram_gunshot):
     """
     Plot each channel of two spectrograms individually in a 2-row by 3-column layout.
