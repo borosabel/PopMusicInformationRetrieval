@@ -12,6 +12,7 @@ import sounddevice as sd
 import json
 import matplotlib.pyplot as plt
 import seaborn as sns
+from pydub.playback import play
 from sklearn.metrics import roc_curve
 from sklearn.metrics import ConfusionMatrixDisplay
 from sklearn.metrics import (
@@ -21,13 +22,11 @@ from sklearn.metrics import (
 
 SAMPLING_RATE = 44100
 HOP_LENGTH = 512
-ONSETS_ABS_ERROR_RATE_IN_SECONDS = 0.050
 WIN_LENGTHS = [1024, 2048, 4096]
-WIN_SIZES = [0.023, 0.046, 0.093]
 N_MELS = 80
 F_MIN = 27.5
 F_MAX = 16000
-NUM_FRAMES = 70
+NUM_FRAMES = 86
 FRAME_LENGTH = HOP_LENGTH * (NUM_FRAMES - 1)
 
 
@@ -48,6 +47,78 @@ def preprocess_gunshot_times(gunshot_times, include_first_gunshot_only=False):
         return gunshot_list
     except (ValueError, SyntaxError):
         return []
+
+
+def plot_spectrogram_channels(spectrogram):
+    """
+    Plot each channel of the spectrogram individually.
+    Args:
+        spectrogram (torch.Tensor): A spectrogram tensor of shape [3, 80, 43].
+    """
+    spectrogram_np = spectrogram.numpy()
+
+    fig, axs = plt.subplots(1, 3, figsize=(15, 5))
+
+    for i in range(3):
+        axs[i].imshow(spectrogram_np[i], aspect='auto', origin='lower', cmap='viridis')
+        axs[i].set_title(f'Channel {i + 1}')
+        axs[i].set_xlabel('Time')
+        axs[i].set_ylabel('Frequency')
+
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_spectrogram_channels_two_rows(spectogram_onset, spectogram_gunshot):
+    """
+    Plot each channel of two spectrograms individually in a 2-row by 3-column layout.
+
+    Args:
+        spectrogram_1 (torch.Tensor): The first spectrogram tensor
+        spectrogram_2 (torch.Tensor): The second spectrogram tensor
+    """
+    # Convert both spectrogram tensors to numpy arrays
+    spectrogram_1_np = spectogram_onset.numpy()
+    spectrogram_2_np = spectogram_gunshot.numpy()
+
+    # Create a 2-row by 3-column figure for plotting
+    fig, axs = plt.subplots(2, 3, figsize=(15, 10))
+
+    # Plot the first spectrogram's channels in the first row
+    for i in range(3):
+        axs[0, i].imshow(spectrogram_1_np[i], aspect='auto', origin='lower', cmap='viridis')
+        axs[0, i].set_title(f'Spectogram Onset - Channel {i + 1}')
+        axs[0, i].set_xlabel('Time')
+        axs[0, i].set_ylabel('Frequency')
+
+    # Plot the second spectrogram's channels in the second row
+    for i in range(3):
+        axs[1, i].imshow(spectrogram_2_np[i], aspect='auto', origin='lower', cmap='viridis')
+        axs[1, i].set_title(f'Spectogram Gunshot - Channel {i + 1}')
+        axs[1, i].set_xlabel('Time')
+        axs[1, i].set_ylabel('Frequency')
+
+    # Adjust layout for better spacing
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_spectrogram_rgb(spectrogram):
+    """
+    Plot the spectrogram as an RGB image.
+    Args:
+        spectrogram (torch.Tensor): A spectrogram tensor of shape [3, 80, 43].
+    """
+    # Convert to numpy and adjust shape to be compatible with matplotlib
+    spectrogram_np = spectrogram.numpy()
+    spectrogram_rgb = np.transpose(spectrogram_np, (1, 2, 0))  # Convert to shape [80, 43, 3]
+
+    plt.figure(figsize=(8, 5))
+    plt.imshow(spectrogram_rgb, aspect='auto', origin='lower')
+    plt.title('RGB Spectrogram')
+    plt.xlabel('Time')
+    plt.ylabel('Frequency')
+    plt.show()
 
 
 def plot_waveform(waveform, sample_rate=SAMPLING_RATE, vertical_lines=None):
@@ -348,6 +419,76 @@ def select_random_segment(file_path, metadata, frame_length=FRAME_LENGTH):
 
     return waveform
 
+def select_valid_onset_segment(file_path, metadata, onset_times, frame_length=FRAME_LENGTH):
+    """
+    Select a valid segment starting from an onset time in an audio file using torchaudio.
+    Only selects an onset where the frame length fits within the audio duration.
+
+    :param file_path: Path to the audio file.
+    :param metadata: Metadata dictionary containing "num_frames" and "sample_rate".
+    :param onset_times: A list of onset times in seconds.
+    :param frame_length: The desired number of frames to load (e.g., 44100 for 1 second at 44.1 kHz).
+    :return: Loaded waveform containing the segment starting at the selected onset.
+    """
+    if len(onset_times) == 0:
+        raise ValueError("The onset_times list is empty.")
+
+    sample_rate = metadata["sample_rate"]
+    total_frames = metadata["num_frames"]
+
+    # Filter onsets to keep only those that can fit a full segment
+    valid_onsets = [onset for onset in onset_times if int(onset * sample_rate) + frame_length <= total_frames]
+
+    # Check if we have any valid onsets left after filtering
+    if len(valid_onsets) == 0:
+        raise ValueError("No valid onsets found that can accommodate the required frame length.")
+
+    # Randomly select an onset from the valid list
+    selected_onset = random.choice(valid_onsets)
+    onset_frame = int(selected_onset * sample_rate)
+
+    # Load the segment starting at the selected onset
+    waveform, sr = torchaudio.load(
+        file_path,
+        frame_offset=onset_frame,
+        num_frames=frame_length
+    )
+
+    return waveform
+
+def process_and_predict(model, audio_path, start_time_sec, mean, std, threshold):
+
+    print(f"Treshold {threshold}")
+
+    # Extract the waveform and the audio sample
+    waveform, sample, sample_rate = extract_sample_at_time(audio_path, start_time_sec)
+
+    # utils.plot_waveform(waveform)
+    # time.sleep(1)  # Add a small delay to ensure the plot gets time to render
+
+    print(f"Playing the audio sample from {start_time_sec:.2f} seconds.")
+    play(sample)
+
+    mean = mean.to(device)
+    std = std.to(device)
+    model = model.to(device)
+    waveform = waveform.to(device)
+
+    mel_spectrogram = calculate_melbands(waveform[0], sample_rate)
+    mel_spectrogram = (mel_spectrogram - mean) / std
+
+    # Reshape and feed to model
+    with th.no_grad():
+        input_tensor = mel_spectrogram.unsqueeze(0).float()
+        output = model(input_tensor).squeeze().item()
+
+    if output >= threshold:
+        prediction = "Gunshot"
+    else:
+        prediction = "No Gunshot"
+    print(f"Model Prediction: {prediction} with output: {output}")
+    return prediction
+
 
 def frames_to_seconds(frame_count, sample_rate):
     """
@@ -460,97 +601,88 @@ def extract_sample_at_time(audio_path, start_time_sec, frame_size=NUM_FRAMES, ho
 
 device = th.device("cuda" if th.cuda.is_available() else "cpu")
 use_cuda = th.cuda.is_available()
+import itertools
 
-
-def train_model(model, optimizer, criterion, train_loader, valid_loader, max_iterations=1000, mean=None, std=None, patience=3, eval_metric='f1'):
+def train_model(
+        model,
+        optimizer,
+        criterion,
+        train_loader,
+        valid_loader,
+        num_epochs=10,
+        mean=None,
+        std=None,
+        patience=3,
+        eval_metric='f1',
+        device='cuda' if th.cuda.is_available() else 'cpu'
+):
     if mean is None or std is None:
         raise ValueError("Mean and std must be provided for normalization.")
 
-    mean = mean.to(device)
-    std = std.to(device)
+    mean, std = mean.to(device), std.to(device)
     model = model.to(device)
-    best_score = 0.0  # Could be based on F1-score or another metric
-    best_threshold = 0.5  # Default threshold
+    best_score = 0.0
+    best_threshold = 0.5
     epochs_since_improvement = 0
 
-    if use_cuda:
-        scaler = th.cuda.amp.GradScaler()
-    else:
-        scaler = None
-
-    total_iterations = 0
-    epoch = 0
-
-    while total_iterations < max_iterations:
+    # Training Loop
+    for epoch in range(num_epochs):
         model.train()
         running_loss = 0.0
 
-        epoch += 1
-        train_loader_tqdm = tqdm(train_loader, desc=f"Epoch [{epoch}] Training")
-
+        # Training Phase
+        train_loader_tqdm = tqdm(train_loader, desc=f"Epoch [{epoch + 1}] Training")
         for features, labels in train_loader_tqdm:
-            if total_iterations >= max_iterations:
-                print(f"Reached max iterations: {max_iterations}. Stopping training.")
-                break
-
-            features, labels = features.to(device), labels.to(device).float().to(device)
+            features, labels = features.to(device), labels.to(device).float()
             optimizer.zero_grad()
             features = (features - mean) / std
 
-            if use_cuda:
-                with th.cuda.amp.autocast():
-                    outputs = model(features).view(-1)
-                    loss = criterion(outputs, labels)
-                scaler.scale(loss).backward()
-                scaler.step(optimizer)
-                scaler.update()
-            else:
-                outputs = model(features).view(-1)
-                loss = criterion(outputs, labels)
-                loss.backward()
-                optimizer.step()
+            outputs = model(features).view(-1)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
 
             running_loss += loss.item() * features.size(0)
-            total_iterations += 1
-
-            # Update tqdm description with current loss
             train_loader_tqdm.set_postfix(loss=loss.item())
 
         epoch_loss = running_loss / len(train_loader.dataset)
-        print(f"Epoch [{epoch}], Loss: {epoch_loss:.4f}")
+        print(f"Epoch [{epoch + 1}], Loss: {epoch_loss:.4f}")
 
-        model.eval()
-        eval_score = evaluate_model_simple(model, valid_loader, mean, std, metric=eval_metric)
-
-        # Choose the metric you care most about to decide if the model improved
+        # Validation Phase
+        eval_score, optimal_threshold = evaluate_model_simple(model, valid_loader, mean, std, metric=eval_metric)
         if eval_score > best_score:
             best_score = eval_score
+            best_threshold = optimal_threshold
             epochs_since_improvement = 0
             print(f"New best {eval_metric}: {best_score:.4f}, model saved.")
-            # Save the model if desired
+            # You can save the model here if desired
             # torch.save(model.state_dict(), 'best_model.pth')
         else:
             epochs_since_improvement += 1
-
+        # Early stopping
         if epochs_since_improvement >= patience:
             print(f"No improvement in {eval_metric} for {patience} epochs. Stopping training.")
             break
 
-    return best_threshold, best_score
+    # Final Confusion Matrix and Result
+    final_confusion_matrix = compute_confusion_matrix(model, valid_loader, best_threshold, mean, std)
+    display_confusion_matrix(final_confusion_matrix)
 
+    return best_threshold, best_score
 
 def evaluate_model_simple(model, valid_loader, mean, std, metric='f1'):
     all_outputs = []
     all_labels = []
 
-    valid_loader_tqdm = tqdm(valid_loader, desc="Validation")
-
+    model.eval()
     with th.no_grad():
+        valid_loader_tqdm = tqdm(valid_loader, desc="Validation")
         for features, labels in valid_loader_tqdm:
             features = features.to(device)
             labels = labels.to(device).float()
             features = (features - mean) / std
             outputs = model(features).view(-1).cpu().numpy()
+
             all_outputs.append(outputs)
             all_labels.append(labels.cpu().numpy())
 
@@ -570,84 +702,32 @@ def evaluate_model_simple(model, valid_loader, mean, std, metric='f1'):
     # Calculate the requested metric
     if metric == 'f1':
         value = f1_score(all_labels, binary_outputs)
-
     elif metric == 'precision':
         value = precision_score(all_labels, binary_outputs)
-
     elif metric == 'recall':
         value = recall_score(all_labels, binary_outputs)
-
-    elif metric == 'specificity':
-        cm = confusion_matrix(all_labels, binary_outputs)
-        tn, fp, _, _ = cm.ravel()
-        value = tn / (tn + fp)
-
     elif metric == 'roc_auc':
         value = roc_auc_score(all_labels, all_outputs)
-
     elif metric == 'average_precision':
         value = average_precision_score(all_labels, all_outputs)
-
     else:
-        raise ValueError(f"Unknown metric: {metric}. Please choose from 'f1', 'precision', 'recall', 'specificity', 'roc_auc', 'average_precision'.")
+        raise ValueError(f"Unknown metric: {metric}. Please choose from 'f1', 'precision', 'recall', 'roc_auc', 'average_precision'.")
 
-    return value
-
-
-def find_optimal_threshold_after_training(model, valid_loader, mean, std):
-    all_outputs = []
-    all_labels = []
-
-    # Add tqdm progress bar for validation loop
-    valid_loader_tqdm = tqdm(valid_loader, desc="Finding Optimal Threshold")
-
-    with th.no_grad():
-        for features, labels in valid_loader_tqdm:
-            features = features.to(device)
-            labels = labels.to(device).float()
-            features = (features - mean) / std
-            outputs = model(features).view(-1).cpu().numpy()
-            all_outputs.append(outputs)
-            all_labels.append(labels.cpu().numpy())
-
-    all_outputs = np.concatenate(all_outputs)
-    all_labels = np.concatenate(all_labels)
-
-    fpr, tpr, thresholds = roc_curve(all_labels, all_outputs)
-    youdens_j = tpr - fpr
-    idx = np.argmax(youdens_j)
-    optimal_threshold = thresholds[idx]
-
-    print(f"Optimal threshold found: {optimal_threshold:.4f}")
-    return optimal_threshold
-
+    return value, optimal_threshold
 
 def compute_confusion_matrix(model, valid_loader, threshold, mean, std):
-    """
-    Compute confusion matrix using batch processing.
-
-    Parameters:
-        model (torch.nn.Module): The trained model.
-        valid_loader (DataLoader): DataLoader for validation data.
-        threshold (float): Threshold to convert probabilities to binary predictions.
-        mean (torch.Tensor): Mean for normalization.
-        std (torch.Tensor): Standard deviation for normalization.
-
-    Returns:
-        cm (numpy.ndarray): Confusion matrix.
-    """
     all_outputs = []
     all_labels = []
 
-    # Add tqdm progress bar for validation loop
-    valid_loader_tqdm = tqdm(valid_loader, desc="Computing Confusion Matrix")
-
+    model.eval()
     with th.no_grad():
+        valid_loader_tqdm = tqdm(valid_loader, desc="Computing Confusion Matrix")
         for features, labels in valid_loader_tqdm:
             features = features.to(device)
             labels = labels.cpu().numpy()
             features = (features - mean) / std
             outputs = model(features).view(-1).cpu().numpy()
+
             all_outputs.append(outputs)
             all_labels.append(labels)
 
@@ -659,18 +739,83 @@ def compute_confusion_matrix(model, valid_loader, threshold, mean, std):
 
     return cm
 
-
 def display_confusion_matrix(cm):
-    """
-    Displays the confusion matrix using matplotlib.
-
-    Parameters:
-        cm (numpy.ndarray): Confusion matrix.
-    """
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[0, 1])
     disp.plot(cmap='magma')
     plt.title('Confusion Matrix')
     plt.show()
+
+
+def manual_evaluate_test(model, feature, threshold, frame_size=NUM_FRAMES, sampling_rate=SAMPLING_RATE, hop_length=HOP_LENGTH, mean=None, std=None, step_size=None, filter_time_sec=0):
+    """
+    Manually evaluate the model on an audio feature, returning time positions where gunshots are detected.
+
+    Parameters:
+        model: The trained model.
+        feature: The feature (e.g., spectrogram) to evaluate.
+        threshold: The prediction threshold for gunshots.
+        frame_size: Number of frames to use in each evaluation.
+        sampling_rate: Audio sampling rate.
+        hop_length: Hop length in samples for each frame.
+        mean: Mean for normalization.
+        std: Standard deviation for normalization.
+        step_size: Step size for moving through frames (default: frame_size // 2).
+        filter_time_sec: Time (in seconds) to filter out close consecutive predictions.
+
+    Returns:
+        List of tuples (minutes, seconds, output) where gunshots are detected along with the model's output.
+    """
+    if mean is None or std is None:
+        raise ValueError("Mean and std must be provided for normalization.")
+
+    mean = mean.to(device)
+    std = std.to(device)
+    model = model.to(device)
+    model.eval()
+
+    predictions = []
+
+    feature = feature.to(device)
+    feature = (feature - mean) / std
+
+    num_frames = feature.shape[2]
+
+    if step_size is None:
+        step_size = 1
+
+    total_iterations = 0
+
+    with th.no_grad():
+        for j in range(0, num_frames - frame_size + 1, step_size):
+            total_iterations += 1
+            start = j
+            end = j + frame_size
+
+            input_frame = feature[:, :, start:end].unsqueeze(0).float()
+            output = model(input_frame).squeeze().item()
+            predictions.append((output, start))
+
+        print("Number of predictions", len(predictions))
+
+        res = []
+        for output, start in predictions:
+            if output >= threshold:
+                time_in_seconds = start * hop_length / sampling_rate
+                minutes = int(time_in_seconds // 60)
+                seconds = time_in_seconds % 60
+                res.append((minutes, seconds, time_in_seconds, output))
+
+    print(f'Found {len(res)} gunshot samples.')
+
+    filtered_res = []
+    last_detection_time = -float('inf')
+
+    for minutes, seconds, time_in_seconds, output in res:
+        if time_in_seconds - last_detection_time >= filter_time_sec:
+            filtered_res.append((minutes, seconds, output))
+            last_detection_time = time_in_seconds
+
+    return filtered_res
 
 #######################################################################################
 
@@ -753,3 +898,47 @@ def filter_by_firearm(df, gun_types):
     filtered_df = df[mask]
 
     return filtered_df
+
+def process_gunshot_data(file_path):
+    # Extract the base filename and replace .txt with .wav
+    base_name = os.path.basename(file_path)
+    wav_filename = os.path.splitext(base_name)[0] + '.wav'
+
+    # Read the file and extract the start times
+    start_times = []
+    with open(file_path, 'r') as file:
+        for line in file:
+            columns = line.split()
+            if len(columns) >= 1:
+                start_time = float(columns[0])
+                start_times.append(start_time)
+
+    # Get the length of the list
+    list_length = len(start_times)
+
+    # Construct the full path for the wav file
+    full_wav_path = os.path.join(os.path.dirname(file_path), wav_filename)
+
+    return full_wav_path, start_times, list_length
+
+def build_dataframe_from_folder(folder_path):
+    data = {
+        'filename': [],
+        'gunshot_location_in_seconds': [],
+        'num_gunshots': []
+    }
+
+    # Iterate through the folder and find all .txt files
+    for file_name in os.listdir(folder_path):
+        if file_name.endswith('.txt'):
+            file_path = os.path.join(folder_path, file_name)
+            wav_filename, start_times, list_length = process_gunshot_data(file_path)
+
+            # Append data to the dataframe columns
+            data['filename'].append(wav_filename)
+            data['gunshot_location_in_seconds'].append(start_times)
+            data['num_gunshots'].append(list_length)
+
+    # Create the DataFrame
+    df = pd.DataFrame(data, columns=['filename', 'gunshot_location_in_seconds', 'num_gunshots'])
+    return df
