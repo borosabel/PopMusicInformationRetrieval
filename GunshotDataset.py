@@ -81,6 +81,7 @@ class GunshotDataset(Dataset):
             gunshot_time = gunshot_times[np.random.randint(0, len(gunshot_times))]
 
         gunshot_waveform, sr_gunshot = torchaudio.load(fn_gunshot)
+        gunshot_waveform = self.process_gunshot(gunshot_waveform)
         gunshot_segment = utils.select_gunshot_segment(gunshot_waveform, sr_gunshot, gunshot_time)
         spectrograms, labels = utils.preprocess_audio_train(gunshot_segment, label=1)
         return spectrograms, labels, gunshot_segment
@@ -97,7 +98,7 @@ class GunshotDataset(Dataset):
             else:
                 gunshot_time = gunshot_times[np.random.randint(0, len(gunshot_times))]
 
-            segment, sr = utils.combine_music_and_gunshot(music_waveform, fn_gunshot, gunshot_time, gunshot_volume_increase_dB=0)
+            segment, sr = self.combine_music_and_gunshot(music_waveform, fn_gunshot, gunshot_time)
             spectrograms, labels = utils.preprocess_audio_train(segment, label=1)
 
         return spectrograms, labels, segment
@@ -131,16 +132,15 @@ class GunshotDataset(Dataset):
 
             gunshot_idx = np.random.randint(0, len(self.gunshot_paths)) if self.shuffle else idx % len(self.gunshot_paths)
             fn_gunshot = self.gunshot_paths[gunshot_idx]
-            gunshot_waveform, sr = torchaudio.load(fn_gunshot)
             gunshot_times = self.gunshot_truth[gunshot_idx]
 
             # Pick a single time from gunshot_times
             if gunshot_times:
                 gunshot_time = gunshot_times[idx % len(gunshot_times)] if not self.shuffle else gunshot_times[np.random.randint(0, len(gunshot_times))]
-                segment, _ = utils.combine_music_and_gunshot(music_waveform, fn_gunshot, gunshot_time)
+                segment, _ = self.combine_music_and_gunshot(music_waveform, fn_gunshot, gunshot_time)
                 spectrograms, _ = utils.preprocess_audio_train(segment, label=1)
 
-        return segment, gunshot_waveform, spectrograms[0] if spectrograms else None
+        return segment, spectrograms[0] if spectrograms else None
 
     def get_random_music_onset(self):
         """Returns a random music onset segment."""
@@ -151,6 +151,93 @@ class GunshotDataset(Dataset):
         music_waveform = utils.select_valid_onset_segment(file_path=fn_music, metadata=fn_music_metadata, onset_times=onset_times)
         music_spectrograms, _ = utils.preprocess_audio_train(music_waveform, label=0)
         return music_waveform, music_spectrograms[0] if music_spectrograms else None
+
+    def loudness_in_db(self, waveform):
+        """
+        Calculate the loudness of the audio waveform in decibels (dB).
+        """
+        rms = th.sqrt(th.mean(waveform**2))
+        db = 20 * th.log10(rms + 1e-6)  # Adding small constant to avoid log(0)
+        return db.item()
+
+    def normalize_to_target_loudness(self, waveform, target_db=-15):
+        """
+        Normalize the audio waveform to the target loudness in dB.
+        """
+        current_db = self.loudness_in_db(waveform)
+        gain_db = target_db - current_db
+        gain_factor = 10 ** (gain_db / 20)  # Convert dB to linear scale
+        return waveform * gain_factor
+
+    def compress_dynamic_range(self, waveform, threshold_db=-10, ratio=4.0):
+        """
+        Apply dynamic range compression to the audio waveform.
+        """
+        threshold = 10 ** (threshold_db / 20)  # Convert dB threshold to linear scale
+        waveform_abs = th.abs(waveform)
+        compressed = th.where(
+            waveform_abs > threshold,
+            threshold + (waveform_abs - threshold) / ratio,
+            waveform_abs,
+            )
+        return th.sign(waveform) * compressed
+
+    def process_gunshot(self, waveform, target_range=(-20, -10)):
+        """
+        Bring the gunshot to the target decibel range.
+        - Normalize to the lower bound of the range.
+        - Apply compression for overblown waveforms.
+        - Scale the waveform randomly within the range.
+        """
+        # Step 1: Normalize to lower bound
+        target_db = target_range[0]
+        normalized_waveform = self.normalize_to_target_loudness(waveform, target_db)
+
+        # Step 2: Compress dynamic range for overblown sounds
+        compressed_waveform = self.compress_dynamic_range(normalized_waveform, threshold_db=target_db)
+
+        random_db = np.random.uniform(*target_range)  # Random dB in the range
+        processed_waveform = self.normalize_to_target_loudness(compressed_waveform, random_db)
+
+        return processed_waveform
+
+    def combine_music_and_gunshot(self, music_waveform, gunshot_file, gunshot_time, sample_rate=44100, pre_gunshot_time=0):
+        """
+        Combines a music segment with a gunshot starting at the beginning of the music waveform.
+
+        :param music_waveform: Preloaded waveform tensor of the music.
+        :param gunshot_file: Path to the gunshot audio file.
+        :param gunshot_time: Time in seconds where the gunshot occurs in the gunshot file.
+        :param gunshot_volume_increase_dB: Volume increase for the gunshot in decibels.
+        :param sample_rate: The sample rate of the audio.
+        :param pre_gunshot_time: Time in seconds to include before the gunshot.
+        :return: Combined music and gunshot waveform, sample rate.
+        """
+
+        # --- DEALING WITH THE GUNSHOT FILE ---
+        # Load the gunshot file
+        gunshot_waveform, _ = torchaudio.load(gunshot_file)
+        gunshot_waveform = self.process_gunshot(gunshot_waveform)
+
+        # Extract the relevant gunshot segment based on gunshot_time and pre_gunshot_time
+        if gunshot_time >= pre_gunshot_time:
+            gunshot_start_sample = int((gunshot_time - pre_gunshot_time) * sample_rate)
+        else:
+            gunshot_start_sample = 0
+
+        # Ensure the gunshot segment length matches the music waveform length
+        music_length_samples = music_waveform.size(1)
+        gunshot_segment = gunshot_waveform[:, gunshot_start_sample:gunshot_start_sample + music_length_samples]
+        if gunshot_segment.size(1) < music_length_samples:
+            pad_length = music_length_samples - gunshot_segment.size(1)
+            gunshot_segment = th.nn.functional.pad(gunshot_segment, (0, pad_length))
+
+        # --- DEALING WITH THE MUSIC AND GUNSHOT OVERLAY ---
+        # Overlay the gunshot onto the music from the beginning
+        combined_segment = music_waveform.clone()
+        combined_segment[:, :gunshot_segment.size(1)] += gunshot_segment
+
+        return combined_segment, sample_rate
 
     def __len__(self):
         return self.num_samples
