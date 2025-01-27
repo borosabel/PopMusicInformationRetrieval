@@ -6,18 +6,19 @@ from tqdm import tqdm
 import librosa
 from pydub import AudioSegment
 import re
+import pandas as pd
 import ast
 import os
 import sounddevice as sd
 import json
 import matplotlib.pyplot as plt
+from sklearn.metrics import precision_recall_curve, auc
 import seaborn as sns
 from pydub.playback import play
 from sklearn.metrics import roc_curve
 from sklearn.metrics import ConfusionMatrixDisplay
 from sklearn.metrics import (
-    roc_auc_score, confusion_matrix, precision_score,
-    recall_score, f1_score, average_precision_score,
+    roc_auc_score, confusion_matrix, f1_score,
 )
 
 SAMPLING_RATE = 44100
@@ -102,6 +103,95 @@ def build_music_onset_dataframe(folder_path):
     df = pd.DataFrame(data)
 
     return df
+
+def generate_audio_metadata_from_df(df, filename_col):
+    """
+    Generates metadata for audio files specified in a DataFrame.
+
+    Parameters:
+    - df: pandas.DataFrame, the DataFrame containing file names.
+    - filename_col: str, the name of the column in the DataFrame with file paths.
+
+    Returns:
+    - metadata_dict: dict, a dictionary with file paths as keys and metadata as values.
+    """
+    import librosa
+    import soundfile as sf
+    import os
+
+    # Initialize an empty dictionary to store the metadata
+    metadata_dict = {}
+
+    # Iterate through each row in the DataFrame
+    for idx, row in df.iterrows():
+        file_path = row[filename_col]
+
+        try:
+            # Load audio file with librosa to obtain sample rate and duration
+            y, sr = librosa.load(file_path, sr=None, mono=False)
+
+            # Read audio metadata with soundfile (e.g., number of channels)
+            with sf.SoundFile(file_path) as sound_file:
+                channels = sound_file.channels
+                num_frames = len(y[0]) if channels > 1 else len(y)
+                duration = sound_file.frames / sound_file.samplerate
+
+            # Store metadata in dictionary
+            metadata_dict[file_path] = {
+                'sample_rate': sr,
+                'channels': channels,
+                'duration': duration,
+                'num_frames': num_frames,
+            }
+
+        except Exception as e:
+            print(f"Error processing {file_path}: {e}")
+
+    return metadata_dict
+
+def calculate_onsets(df, pickle_filename):
+    """
+    Calculates onsets and the number of onsets for music files.
+
+    Parameters:
+    - df: pandas DataFrame with a column 'Path' containing paths to music files.
+    - pickle_filename: string, filename for the output pickle file.
+
+    Returns:
+    - df_result: pandas DataFrame with columns 'Path', 'onsets', and 'num_onsets'.
+    """
+    # Lists to store results
+    onsets_list = []
+    num_onsets_list = []
+
+    # Iterate over each file in the dataframe
+    for index, row in tqdm(df.iterrows(), total=df.shape[0]):
+        music_path = row['filename']
+
+        try:
+            # Load audio file with original sampling rate
+            y, sr = librosa.load(music_path, sr=None)
+
+            # Calculate onsets (times in seconds)
+            onset_frames = librosa.onset.onset_detect(y=y, sr=sr)
+            onset_times = librosa.frames_to_time(onset_frames, sr=sr)
+            onsets_list.append(onset_times.tolist())
+            num_onsets_list.append(len(onset_times))
+
+        except Exception as e:
+            print(f"Error processing {music_path}: {e}")
+            onsets_list.append([])
+            num_onsets_list.append(0)
+
+    # Create the result dataframe
+    df_result = df.copy()
+    df_result['onsets'] = onsets_list
+    df_result['num_onsets'] = num_onsets_list
+
+    # Save dataframe to pickle file
+    df_result.to_pickle(pickle_filename)
+
+    return df_result
 
 
 def plot_spectrogram_channels_two_rows(spectogram_onset, spectogram_gunshot):
@@ -524,6 +614,43 @@ def process_and_predict(model, audio_path, start_time_sec, mean, std, threshold)
     print(f"Model Prediction: {prediction} with output: {output}")
     return prediction
 
+def process_spectrogram_and_predict(model, spectrogram, mean, std, threshold):
+    """
+    Process a precomputed spectrogram and feed it to the model for prediction.
+    """
+    print(f"Threshold: {threshold}")
+
+    # Normalize the spectrogram
+    mean = mean.to(device)
+    std = std.to(device)
+    model = model.to(device)
+
+    # Ensure spectrogram is a tensor
+    if not isinstance(spectrogram, th.Tensor):
+        spectrogram_tensor = th.tensor(spectrogram, dtype=th.float32).to(device)
+    else:
+        spectrogram_tensor = spectrogram.to(device)
+
+    spectrogram_tensor = (spectrogram_tensor - mean) / std
+
+    # Ensure spectrogram has 4D shape (batch_size, channels, height, width)
+    if len(spectrogram_tensor.shape) == 2:
+        spectrogram_tensor = spectrogram_tensor.unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions
+    elif len(spectrogram_tensor.shape) == 3:
+        spectrogram_tensor = spectrogram_tensor.unsqueeze(0)  # Add batch dimension only
+
+    # Predict with the model
+    with th.no_grad():
+        output = model(spectrogram_tensor).squeeze().item()
+
+    # Interpret the result
+    if output >= threshold:
+        prediction = "Gunshot"
+    else:
+        prediction = "No Gunshot"
+
+    print(f"Model Prediction: {prediction} with output: {output}")
+    return prediction
 
 def frames_to_seconds(frame_count, sample_rate):
     """
@@ -601,7 +728,7 @@ def preprocess_audio(files):
 
 def compute_mean_std(dataloader):
     l = []
-    for features, _ in tqdm(dataloader, desc="Computing mean and std"):
+    for features, _, _ in tqdm(dataloader, desc="Computing mean and std"):
         l += features
     tmp = th.cat(l)
     mean = th.mean(tmp, dim=(0, 2)).unsqueeze(1)
@@ -660,14 +787,22 @@ def train_model(
     best_threshold = 0.5
     epochs_since_improvement = 0
 
+    train_losses = []  # Store training losses
+    valid_losses = []  # Store validation losses
+    roc_aucs = []  # Store AUC-ROC scores
+    pr_aucs = []  # Store PR-AUC scores
+    last_failed_samples = []  # To store the last epoch's failed samples
+
+    # Learning rate scheduler
+    scheduler = th.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.1, patience=2, verbose=True)
+
     # Training Loop
     for epoch in range(num_epochs):
         model.train()
         running_loss = 0.0
 
-        # Training Phase
         train_loader_tqdm = tqdm(train_loader, desc=f"Epoch [{epoch + 1}] Training")
-        for features, labels in train_loader_tqdm:
+        for features, labels, waveform in train_loader_tqdm:
             features, labels = features.to(device), labels.to(device).float()
             optimizer.zero_grad()
             features = (features - mean) / std
@@ -675,80 +810,168 @@ def train_model(
             outputs = model(features).view(-1)
             loss = criterion(outputs, labels)
             loss.backward()
+            th.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # Gradient clipping
             optimizer.step()
 
             running_loss += loss.item() * features.size(0)
             train_loader_tqdm.set_postfix(loss=loss.item())
 
         epoch_loss = running_loss / len(train_loader.dataset)
+        train_losses.append(epoch_loss)
         print(f"Epoch [{epoch + 1}], Loss: {epoch_loss:.4f}")
 
         # Validation Phase
-        eval_score, optimal_threshold = evaluate_model_simple(model, valid_loader, mean, std, metric=eval_metric)
+        model.eval()
+        valid_loss = 0.0
+        with th.no_grad():
+            for features, labels, waveform in valid_loader:
+                features, labels = features.to(device), labels.to(device).float()
+                features = (features - mean) / std
+
+                outputs = model(features).view(-1)
+                loss = criterion(outputs, labels)
+                valid_loss += loss.item() * features.size(0)
+
+        valid_loss /= len(valid_loader.dataset)
+        valid_losses.append(valid_loss)
+        print(f"Epoch [{epoch + 1}], Validation Loss: {valid_loss:.4f}")
+
+        # Evaluate metrics
+        eval_score, optimal_threshold, roc_auc, pr_auc, failed_samples = evaluate_model_simple(
+            model, valid_loader, mean, std, metric=eval_metric
+        )
+        roc_aucs.append(roc_auc)
+        pr_aucs.append(pr_auc)
+        last_failed_samples = failed_samples
+
+        print(f"Epoch [{epoch + 1}], AUC-ROC: {roc_auc:.4f}, PR-AUC: {pr_auc:.4f}")
+
         if eval_score > best_score:
             best_score = eval_score
             best_threshold = optimal_threshold
             epochs_since_improvement = 0
             print(f"New best {eval_metric}: {best_score:.4f}, model saved.")
-            # You can save the model here if desired
-            # torch.save(model.state_dict(), 'best_model.pth')
+            # Save the model here if desired
+            # th.save(model.state_dict(), 'best_model.pth')
         else:
             epochs_since_improvement += 1
-        # Early stopping
-        if epochs_since_improvement >= patience:
-            print(f"No improvement in {eval_metric} for {patience} epochs. Stopping training.")
-            break
+            if epochs_since_improvement >= patience:
+                print(f"No improvement in {eval_metric} for {patience} epochs. Stopping training.")
+                break
 
-    # Final Confusion Matrix and Result
+        # Update learning rate based on validation metric
+        scheduler.step(eval_score)
+
     final_confusion_matrix = compute_confusion_matrix(model, valid_loader, best_threshold, mean, std)
     display_confusion_matrix(final_confusion_matrix)
 
-    return best_threshold, best_score
+    # Plot training and validation loss
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(1, len(train_losses) + 1), train_losses, marker='o', label='Training Loss')
+    plt.plot(range(1, len(valid_losses) + 1), valid_losses, marker='s', label='Validation Loss')
+    plt.plot(range(1, len(roc_aucs) + 1), roc_aucs, marker='^', label='AUC-ROC')
+    plt.plot(range(1, len(pr_aucs) + 1), pr_aucs, marker='v', label='PR-AUC')
+    plt.xlabel('Epoch')
+    plt.ylabel('Metric')
+    plt.title('Training and Validation Metrics Over Epochs')
+    plt.legend()
+    plt.grid()
+    plt.show()
 
-def evaluate_model_simple(model, valid_loader, mean, std, metric='f1'):
-    all_outputs = []
-    all_labels = []
+    return best_threshold, best_score, last_failed_samples
 
+
+def evaluate_model_simple(model, valid_loader, mean, std, metric='f1', threshold=0.5, device='cuda' if th.cuda.is_available() else 'cpu'):
     model.eval()
+    y_true, y_pred = [], []
+    y_scores = []  # For AUC-ROC
+    failed_samples = []
+
     with th.no_grad():
-        valid_loader_tqdm = tqdm(valid_loader, desc="Validation")
-        for features, labels in valid_loader_tqdm:
-            features = features.to(device)
-            labels = labels.to(device).float()
+        for batch_idx, (features, labels, waveform) in enumerate(valid_loader):
+            features, labels = features.to(device), labels.to(device).float()
             features = (features - mean) / std
-            outputs = model(features).view(-1).cpu().numpy()
 
-            all_outputs.append(outputs)
-            all_labels.append(labels.cpu().numpy())
+            outputs = model(features).view(-1)
+            predictions = (outputs >= threshold).float()
 
-    all_outputs = np.concatenate(all_outputs)
-    all_labels = np.concatenate(all_labels)
+            y_true.extend(labels.cpu().tolist())
+            y_pred.extend(predictions.cpu().tolist())
+            y_scores.extend(outputs.cpu().tolist())  # Save raw model outputs for ROC-AUC
 
-    # Compute optimal threshold using Youden's J statistic
-    fpr, tpr, thresholds = roc_curve(all_labels, all_outputs)
-    youdens_j = tpr - fpr
-    idx = np.argmax(youdens_j)
-    optimal_threshold = thresholds[idx]
-    print(f"Optimal threshold: {optimal_threshold:.4f}")
+            for i, (label, prediction, waveform) in enumerate(zip(labels, predictions, waveform)):
+                if label != prediction:
+                    failed_samples.append({
+                        'batch_idx': batch_idx,
+                        'sample_idx': i,
+                        'label': label.item(),
+                        'prediction': prediction.item(),
+                        'spectrogram': features[i],
+                        'waveform': waveform
+                    })
 
-    # Binarize outputs based on the optimal threshold
-    binary_outputs = (all_outputs >= optimal_threshold).astype(int)
+    y_true = np.array(y_true)
+    y_pred = np.array(y_pred)
+    y_scores = np.array(y_scores)
 
-    # Calculate the requested metric
     if metric == 'f1':
-        value = f1_score(all_labels, binary_outputs)
-    elif metric == 'precision':
-        value = precision_score(all_labels, binary_outputs)
-    elif metric == 'recall':
-        value = recall_score(all_labels, binary_outputs)
-    elif metric == 'roc_auc':
-        value = roc_auc_score(all_labels, all_outputs)
-    elif metric == 'average_precision':
-        value = average_precision_score(all_labels, all_outputs)
+        eval_score = f1_score(y_true, y_pred)
     else:
-        raise ValueError(f"Unknown metric: {metric}. Please choose from 'f1', 'precision', 'recall', 'roc_auc', 'average_precision'.")
+        raise ValueError(f"Unsupported metric: {metric}")
 
-    return value, optimal_threshold
+    roc_auc = roc_auc_score(y_true, y_scores)  # Calculate AUC-ROC
+
+    # Compute precision-recall curve
+    precision, recall, _ = precision_recall_curve(y_true, y_scores)
+    pr_auc = auc(recall, precision)  # Calculate Precision-Recall AUC
+
+    return eval_score, threshold, roc_auc, pr_auc, failed_samples
+
+
+# def evaluate_model_simple(model, valid_loader, mean, std, metric='f1'):
+#     all_outputs = []
+#     all_labels = []
+#
+#     model.eval()
+#     with th.no_grad():
+#         valid_loader_tqdm = tqdm(valid_loader, desc="Validation")
+#         for features, labels in valid_loader_tqdm:
+#             features = features.to(device)
+#             labels = labels.to(device).float()
+#             features = (features - mean) / std
+#             outputs = model(features).view(-1).cpu().numpy()
+#
+#             all_outputs.append(outputs)
+#             all_labels.append(labels.cpu().numpy())
+#
+#     all_outputs = np.concatenate(all_outputs)
+#     all_labels = np.concatenate(all_labels)
+#
+#     # Compute optimal threshold using Youden's J statistic
+#     fpr, tpr, thresholds = roc_curve(all_labels, all_outputs)
+#     youdens_j = tpr - fpr
+#     idx = np.argmax(youdens_j)
+#     optimal_threshold = thresholds[idx]
+#     print(f"Optimal threshold: {optimal_threshold:.4f}")
+#
+#     # Binarize outputs based on the optimal threshold
+#     binary_outputs = (all_outputs >= optimal_threshold).astype(int)
+#
+#     # Calculate the requested metric
+#     if metric == 'f1':
+#         value = f1_score(all_labels, binary_outputs)
+#     elif metric == 'precision':
+#         value = precision_score(all_labels, binary_outputs)
+#     elif metric == 'recall':
+#         value = recall_score(all_labels, binary_outputs)
+#     elif metric == 'roc_auc':
+#         value = roc_auc_score(all_labels, all_outputs)
+#     elif metric == 'average_precision':
+#         value = average_precision_score(all_labels, all_outputs)
+#     else:
+#         raise ValueError(f"Unknown metric: {metric}. Please choose from 'f1', 'precision', 'recall', 'roc_auc', 'average_precision'.")
+#
+#     return value, optimal_threshold
 
 def compute_confusion_matrix(model, valid_loader, threshold, mean, std):
     all_outputs = []
@@ -757,7 +980,7 @@ def compute_confusion_matrix(model, valid_loader, threshold, mean, std):
     model.eval()
     with th.no_grad():
         valid_loader_tqdm = tqdm(valid_loader, desc="Computing Confusion Matrix")
-        for features, labels in valid_loader_tqdm:
+        for features, labels, waveform in valid_loader_tqdm:
             features = features.to(device)
             labels = labels.cpu().numpy()
             features = (features - mean) / std
