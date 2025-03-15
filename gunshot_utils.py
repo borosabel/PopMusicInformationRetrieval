@@ -386,6 +386,52 @@ def compute_confusion_matrix(model, valid_loader, threshold, mean, std):
     return confusion_matrix(all_labels, predictions)
 
 
+def generate_audio_metadata_from_df(df, filename_col):
+    """
+    Generates metadata for audio files specified in a DataFrame.
+
+    Parameters:
+    - df: pandas.DataFrame, the DataFrame containing file names.
+    - filename_col: str, the name of the column in the DataFrame with file paths.
+
+    Returns:
+    - metadata_dict: dict, a dictionary with file paths as keys and metadata as values.
+    """
+    import librosa
+    import soundfile as sf
+    import os
+
+    # Initialize an empty dictionary to store the metadata
+    metadata_dict = {}
+
+    # Iterate through each row in the DataFrame
+    for idx, row in df.iterrows():
+        file_path = row[filename_col]
+
+        try:
+            # Load audio file with librosa to obtain sample rate and duration
+            y, sr = librosa.load(file_path, sr=None, mono=False)
+
+            # Read audio metadata with soundfile (e.g., number of channels)
+            with sf.SoundFile(file_path) as sound_file:
+                channels = sound_file.channels
+                num_frames = len(y[0]) if channels > 1 else len(y)
+                duration = sound_file.frames / sound_file.samplerate
+
+            # Store metadata in dictionary
+            metadata_dict[file_path] = {
+                'sample_rate': sr,
+                'channels': channels,
+                'duration': duration,
+                'num_frames': num_frames,
+            }
+
+        except Exception as e:
+            print(f"Error processing {file_path}: {e}")
+
+    return metadata_dict
+
+
 def display_confusion_matrix(cm):
     """
     Utility to display a confusion matrix with [0,1] labels.

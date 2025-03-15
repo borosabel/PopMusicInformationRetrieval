@@ -5,7 +5,7 @@ import torchaudio
 from torch.utils.data import Dataset
 
 # Adjust this import path if needed
-from PopMusicInformationRetrieval import gunshot_utils as utils
+import gunshot_utils as utils
 
 importlib.reload(utils)
 
