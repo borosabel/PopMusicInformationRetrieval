@@ -4,13 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="21ee0713-c474-4fee-aa92-b93c9b7db1ac" name="Changes" comment="add gitignore">
-      <change afterPath="$PROJECT_DIR$/Dataset_builder.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/noname.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/noname.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sampled_gunshot_metadata.pkl" beforeDir="false" afterPath="$PROJECT_DIR$/pkl_data/sampled_gunshot_metadata.pkl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sampled_music_metadata.pkl" beforeDir="false" afterPath="$PROJECT_DIR$/pkl_data/sampled_music_metadata.pkl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sampled_music_metadata_44100.pkl" beforeDir="false" afterPath="$PROJECT_DIR$/pkl_data/sampled_music_metadata_44100.pkl" afterDir="false" />
-    </list>
+    <list default="true" id="91817755-ea83-4c50-9aaf-9a5326b858bc" name="Changes" comment="add gitignore" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -43,6 +37,31 @@
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
     </key>
+  </component>
+  <component name="RunManager">
+    <configuration name="Thesis" type="PythonConfigurationType" factoryName="Python">
+      <module name="PopMusicInformationRetrieval" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="SDK_NAME" value="Python 3.9 virtualenv at ~/.pyenv/versions/thesis_env" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
