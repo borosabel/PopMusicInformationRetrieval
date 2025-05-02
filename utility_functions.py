@@ -123,7 +123,10 @@ def filter_tokens_by_document_frequency(df, column_name, min_doc_frequency=0.05,
     return df
 
 
-
+# This function is the main cleanup function for lyrics.
+# We additionally use also the light preprocessing, because during Topic Modeling we might not need to apply the
+# whole pre-processing pipeline, because the different librarires we use during Topic Modeling apply some
+# pre-processing steps out of the box.
 def cleanup(text):
     # Expand contractions
     text = contractions.fix(text)

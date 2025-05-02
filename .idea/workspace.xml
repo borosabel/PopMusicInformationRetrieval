@@ -5,21 +5,26 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="21ee0713-c474-4fee-aa92-b93c9b7db1ac" name="Changes" comment="add gitignore">
-      <change afterPath="$PROJECT_DIR$/Dataset_builder.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/noname.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/noname.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sampled_gunshot_metadata.pkl" beforeDir="false" afterPath="$PROJECT_DIR$/pkl_data/sampled_gunshot_metadata.pkl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sampled_music_metadata.pkl" beforeDir="false" afterPath="$PROJECT_DIR$/pkl_data/sampled_music_metadata.pkl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sampled_music_metadata_44100.pkl" beforeDir="false" afterPath="$PROJECT_DIR$/pkl_data/sampled_music_metadata_44100.pkl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lyrics_preprocessing.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/lyrics_preprocessing.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utility_functions.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility_functions.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Jupyter Notebook" />
+      </list>
+    </option>
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="main" />
+        <entry key="$PROJECT_DIR$" value="topic_modeling" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -32,22 +37,28 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;gunshot&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/borosabel/Documents/Uni/Thesis/PopMusicInformationRetrieval&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/Users/borosabel/Documents/Uni/Thesis/PopMusicInformationRetrieval",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/Data/excel_data" />
     </key>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-559ba0cadc45-1e0160e1c7f0-com.jetbrains.pycharm.ds.sharedIndexes.bundled-DS-241.15989.62" />
+        <option value="bundled-python-sdk-a8e928d85084-fab4200a9dfa-com.jetbrains.pycharm.ds.sharedIndexes.bundled-DS-243.22562.236" />
       </set>
     </attachedChunks>
   </component>
@@ -63,7 +74,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="gunshot" />
+                        <option value="main" />
                       </list>
                     </value>
                   </entry>

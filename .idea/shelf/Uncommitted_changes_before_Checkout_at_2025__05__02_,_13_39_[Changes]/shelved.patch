@@ -1,0 +1,56 @@
+Index: .idea/workspace.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project version=\"4\">\n  <component name=\"AutoImportSettings\">\n    <option name=\"autoReloadType\" value=\"SELECTIVE\" />\n  </component>\n  <component name=\"ChangeListManager\">\n    <list default=\"true\" id=\"21ee0713-c474-4fee-aa92-b93c9b7db1ac\" name=\"Changes\" comment=\"add gitignore\">\n      <change afterPath=\"$PROJECT_DIR$/Dataset_builder.ipynb\" afterDir=\"false\" />\n      <change beforePath=\"$PROJECT_DIR$/noname.ipynb\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/noname.ipynb\" afterDir=\"false\" />\n      <change beforePath=\"$PROJECT_DIR$/sampled_gunshot_metadata.pkl\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/pkl_data/sampled_gunshot_metadata.pkl\" afterDir=\"false\" />\n      <change beforePath=\"$PROJECT_DIR$/sampled_music_metadata.pkl\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/pkl_data/sampled_music_metadata.pkl\" afterDir=\"false\" />\n      <change beforePath=\"$PROJECT_DIR$/sampled_music_metadata_44100.pkl\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/pkl_data/sampled_music_metadata_44100.pkl\" afterDir=\"false\" />\n    </list>\n    <option name=\"SHOW_DIALOG\" value=\"false\" />\n    <option name=\"HIGHLIGHT_CONFLICTS\" value=\"true\" />\n    <option name=\"HIGHLIGHT_NON_ACTIVE_CHANGELIST\" value=\"false\" />\n    <option name=\"LAST_RESOLUTION\" value=\"IGNORE\" />\n  </component>\n  <component name=\"Git.Settings\">\n    <option name=\"RECENT_BRANCH_BY_REPOSITORY\">\n      <map>\n        <entry key=\"$PROJECT_DIR$\" value=\"main\" />\n      </map>\n    </option>\n    <option name=\"RECENT_GIT_ROOT_PATH\" value=\"$PROJECT_DIR$\" />\n  </component>\n  <component name=\"ProjectColorInfo\">{\n  &quot;associatedIndex&quot;: 3\n}</component>\n  <component name=\"ProjectId\" id=\"2neSXikTZVHSPcneWOpJcKhRhNK\" />\n  <component name=\"ProjectViewState\">\n    <option name=\"hideEmptyMiddlePackages\" value=\"true\" />\n    <option name=\"showLibraryContents\" value=\"true\" />\n  </component>\n  <component name=\"PropertiesComponent\">{\n  &quot;keyToString&quot;: {\n    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,\n    &quot;git-widget-placeholder&quot;: &quot;gunshot&quot;,\n    &quot;last_opened_file_path&quot;: &quot;/Users/borosabel/Documents/Uni/Thesis/PopMusicInformationRetrieval&quot;\n  }\n}</component>\n  <component name=\"RecentsManager\">\n    <key name=\"CopyFile.RECENT_KEYS\">\n      <recent name=\"$PROJECT_DIR$\" />\n    </key>\n  </component>\n  <component name=\"SharedIndexes\">\n    <attachedChunks>\n      <set>\n        <option value=\"bundled-python-sdk-559ba0cadc45-1e0160e1c7f0-com.jetbrains.pycharm.ds.sharedIndexes.bundled-DS-241.15989.62\" />\n      </set>\n    </attachedChunks>\n  </component>\n  <component name=\"SpellCheckerSettings\" RuntimeDictionaries=\"0\" Folders=\"0\" CustomDictionaries=\"0\" DefaultDictionary=\"application-level\" UseSingleDictionary=\"true\" transferred=\"true\" />\n  <component name=\"Vcs.Log.Tabs.Properties\">\n    <option name=\"TAB_STATES\">\n      <map>\n        <entry key=\"MAIN\">\n          <value>\n            <State>\n              <option name=\"FILTERS\">\n                <map>\n                  <entry key=\"branch\">\n                    <value>\n                      <list>\n                        <option value=\"gunshot\" />\n                      </list>\n                    </value>\n                  </entry>\n                </map>\n              </option>\n            </State>\n          </value>\n        </entry>\n      </map>\n    </option>\n  </component>\n  <component name=\"VcsManagerConfiguration\">\n    <MESSAGE value=\"resample audio data, make code effective, add gitignore\" />\n    <MESSAGE value=\"add gitignore\" />\n    <option name=\"LAST_COMMIT_MESSAGE\" value=\"add gitignore\" />\n  </component>\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/workspace.xml b/.idea/workspace.xml
+--- a/.idea/workspace.xml	(revision 961ac1d7ed60df7ae1f4a1c6a9d0d2226d25b8f8)
++++ b/.idea/workspace.xml	(date 1746182308230)
+@@ -4,13 +4,7 @@
+     <option name="autoReloadType" value="SELECTIVE" />
+   </component>
+   <component name="ChangeListManager">
+-    <list default="true" id="21ee0713-c474-4fee-aa92-b93c9b7db1ac" name="Changes" comment="add gitignore">
+-      <change afterPath="$PROJECT_DIR$/Dataset_builder.ipynb" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/noname.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/noname.ipynb" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/sampled_gunshot_metadata.pkl" beforeDir="false" afterPath="$PROJECT_DIR$/pkl_data/sampled_gunshot_metadata.pkl" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/sampled_music_metadata.pkl" beforeDir="false" afterPath="$PROJECT_DIR$/pkl_data/sampled_music_metadata.pkl" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/sampled_music_metadata_44100.pkl" beforeDir="false" afterPath="$PROJECT_DIR$/pkl_data/sampled_music_metadata_44100.pkl" afterDir="false" />
+-    </list>
++    <list default="true" id="21ee0713-c474-4fee-aa92-b93c9b7db1ac" name="Changes" comment="add gitignore" />
+     <option name="SHOW_DIALOG" value="false" />
+     <option name="HIGHLIGHT_CONFLICTS" value="true" />
+     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+@@ -32,13 +26,15 @@
+     <option name="hideEmptyMiddlePackages" value="true" />
+     <option name="showLibraryContents" value="true" />
+   </component>
+-  <component name="PropertiesComponent">{
+-  &quot;keyToString&quot;: {
+-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+-    &quot;git-widget-placeholder&quot;: &quot;gunshot&quot;,
+-    &quot;last_opened_file_path&quot;: &quot;/Users/borosabel/Documents/Uni/Thesis/PopMusicInformationRetrieval&quot;
++  <component name="PropertiesComponent"><![CDATA[{
++  "keyToString": {
++    "RunOnceActivity.ShowReadmeOnStart": "true",
++    "RunOnceActivity.git.unshallow": "true",
++    "git-widget-placeholder": "main",
++    "last_opened_file_path": "/Users/abelboros/Documents/Personal/Thesis/PopMusicInformationRetrieval",
++    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
+   }
+-}</component>
++}]]></component>
+   <component name="RecentsManager">
+     <key name="CopyFile.RECENT_KEYS">
+       <recent name="$PROJECT_DIR$" />
+@@ -47,7 +43,7 @@
+   <component name="SharedIndexes">
+     <attachedChunks>
+       <set>
+-        <option value="bundled-python-sdk-559ba0cadc45-1e0160e1c7f0-com.jetbrains.pycharm.ds.sharedIndexes.bundled-DS-241.15989.62" />
++        <option value="bundled-python-sdk-a8e928d85084-fab4200a9dfa-com.jetbrains.pycharm.ds.sharedIndexes.bundled-DS-243.22562.236" />
+       </set>
+     </attachedChunks>
+   </component>
