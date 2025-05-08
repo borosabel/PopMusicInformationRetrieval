@@ -4,27 +4,25 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="21ee0713-c474-4fee-aa92-b93c9b7db1ac" name="Changes" comment="add gitignore">
+    <list default="true" id="21ee0713-c474-4fee-aa92-b93c9b7db1ac" name="Changes" comment="refactor lyrics preprocessing and add EDA analysis">
+      <change afterPath="$PROJECT_DIR$/Topic Modeling/utility_functions_topic_modeling.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lyrics_preprocessing.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/lyrics_preprocessing.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utility_functions.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility_functions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CTM.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/Topic Modeling/CTM.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Comparision.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/Topic Modeling/Comparision.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/LDA.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/Topic Modeling/LDA.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TopicModeling.ipynb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/baseline_LDA.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/Topic Modeling/baseline_LDA.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/preprocessed_df.pkl" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
-  <component name="FileTemplateManagerImpl">
-    <option name="RECENT_TEMPLATES">
-      <list>
-        <option value="Jupyter Notebook" />
-      </list>
-    </option>
-  </component>
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="topic_modeling" />
+        <entry key="$PROJECT_DIR$" value="main" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -37,22 +35,22 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "main",
-    "last_opened_file_path": "/Users/borosabel/Documents/Uni/Thesis/PopMusicInformationRetrieval",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;topic__modeling&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/abelboros/Documents/Personal/Thesis/PopMusicInformationRetrieval&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/Topic Modeling" />
       <recent name="$PROJECT_DIR$" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$" />
-      <recent name="$PROJECT_DIR$/Data/excel_data" />
+      <recent name="$PROJECT_DIR$/Data/pkl_data" />
+      <recent name="$PROJECT_DIR$/Topic Modeling" />
     </key>
   </component>
   <component name="SharedIndexes">
@@ -74,7 +72,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="main" />
+                        <option value="gunshot" />
                       </list>
                     </value>
                   </entry>
@@ -89,6 +87,7 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="resample audio data, make code effective, add gitignore" />
     <MESSAGE value="add gitignore" />
-    <option name="LAST_COMMIT_MESSAGE" value="add gitignore" />
+    <MESSAGE value="refactor lyrics preprocessing and add EDA analysis" />
+    <option name="LAST_COMMIT_MESSAGE" value="refactor lyrics preprocessing and add EDA analysis" />
   </component>
 </project>
