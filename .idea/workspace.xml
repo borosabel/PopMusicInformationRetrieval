@@ -4,12 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="21ee0713-c474-4fee-aa92-b93c9b7db1ac" name="Changes" comment="add gitignore">
-      <change afterPath="$PROJECT_DIR$/Dataset_builder.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/noname.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/noname.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sampled_gunshot_metadata.pkl" beforeDir="false" afterPath="$PROJECT_DIR$/pkl_data/sampled_gunshot_metadata.pkl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sampled_music_metadata.pkl" beforeDir="false" afterPath="$PROJECT_DIR$/pkl_data/sampled_music_metadata.pkl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sampled_music_metadata_44100.pkl" beforeDir="false" afterPath="$PROJECT_DIR$/pkl_data/sampled_music_metadata_44100.pkl" afterDir="false" />
+    <list default="true" id="21ee0713-c474-4fee-aa92-b93c9b7db1ac" name="Changes" comment="refactor lyrics preprocessing and add EDA analysis">
+      <change afterPath="$PROJECT_DIR$/Topic Modeling/utility_functions_topic_modeling.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CTM.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/Topic Modeling/CTM.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Comparision.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/Topic Modeling/Comparision.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/LDA.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/Topic Modeling/LDA.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TopicModeling.ipynb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/baseline_LDA.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/Topic Modeling/baseline_LDA.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/preprocessed_df.pkl" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -35,19 +38,25 @@
   <component name="PropertiesComponent">{
   &quot;keyToString&quot;: {
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;gunshot&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/borosabel/Documents/Uni/Thesis/PopMusicInformationRetrieval&quot;
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;topic__modeling&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/abelboros/Documents/Personal/Thesis/PopMusicInformationRetrieval&quot;
   }
 }</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/Topic Modeling" />
       <recent name="$PROJECT_DIR$" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/Data/pkl_data" />
+      <recent name="$PROJECT_DIR$/Topic Modeling" />
     </key>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-559ba0cadc45-1e0160e1c7f0-com.jetbrains.pycharm.ds.sharedIndexes.bundled-DS-241.15989.62" />
+        <option value="bundled-python-sdk-a8e928d85084-fab4200a9dfa-com.jetbrains.pycharm.ds.sharedIndexes.bundled-DS-243.22562.236" />
       </set>
     </attachedChunks>
   </component>
@@ -78,6 +87,7 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="resample audio data, make code effective, add gitignore" />
     <MESSAGE value="add gitignore" />
-    <option name="LAST_COMMIT_MESSAGE" value="add gitignore" />
+    <MESSAGE value="refactor lyrics preprocessing and add EDA analysis" />
+    <option name="LAST_COMMIT_MESSAGE" value="refactor lyrics preprocessing and add EDA analysis" />
   </component>
 </project>
