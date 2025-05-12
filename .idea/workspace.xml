@@ -4,53 +4,51 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="21ee0713-c474-4fee-aa92-b93c9b7db1ac" name="Changes" comment="refactor lyrics preprocessing and add EDA analysis">
-      <change afterPath="$PROJECT_DIR$/Topic Modeling/utility_functions_topic_modeling.py" afterDir="false" />
+    <list default="true" id="47a94b28-c086-490d-945c-aa512b2211d3" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/EDA/tempo.ipynb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/EDA/utility_functions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/PopMusicInformationRetrieval.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/PopMusicInformationRetrieval.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Checkout_at_2025__05__02_,_13_39_[Changes]/shelved.patch" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Checkout_at_2025__05__02___13_39__Changes_.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/CTM.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/Topic Modeling/CTM.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Comparision.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/Topic Modeling/Comparision.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/LDA.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/Topic Modeling/LDA.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/TopicModeling.ipynb" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/baseline_LDA.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/Topic Modeling/baseline_LDA.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/preprocessed_df.pkl" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
-  <component name="Git.Settings">
-    <option name="RECENT_BRANCH_BY_REPOSITORY">
-      <map>
-        <entry key="$PROJECT_DIR$" value="main" />
-      </map>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Jupyter Notebook" />
+      </list>
     </option>
+  </component>
+  <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo">{
-  &quot;associatedIndex&quot;: 3
-}</component>
-  <component name="ProjectId" id="2neSXikTZVHSPcneWOpJcKhRhNK" />
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 3
+}]]></component>
+  <component name="ProjectId" id="2x0TIUsgyfztEn9XJhHHAW9pwMk" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;topic__modeling&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/abelboros/Documents/Personal/Thesis/PopMusicInformationRetrieval&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/Users/abelboros/Documents/Personal/Thesis/PopMusicInformationRetrieval/EDA"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/Topic Modeling" />
-      <recent name="$PROJECT_DIR$" />
-    </key>
-    <key name="MoveFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/Data/pkl_data" />
-      <recent name="$PROJECT_DIR$/Topic Modeling" />
+      <recent name="$PROJECT_DIR$/EDA" />
     </key>
   </component>
   <component name="SharedIndexes">
@@ -66,28 +64,10 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State>
-              <option name="FILTERS">
-                <map>
-                  <entry key="branch">
-                    <value>
-                      <list>
-                        <option value="gunshot" />
-                      </list>
-                    </value>
-                  </entry>
-                </map>
-              </option>
-            </State>
+            <State />
           </value>
         </entry>
       </map>
     </option>
-  </component>
-  <component name="VcsManagerConfiguration">
-    <MESSAGE value="resample audio data, make code effective, add gitignore" />
-    <MESSAGE value="add gitignore" />
-    <MESSAGE value="refactor lyrics preprocessing and add EDA analysis" />
-    <option name="LAST_COMMIT_MESSAGE" value="refactor lyrics preprocessing and add EDA analysis" />
   </component>
 </project>
