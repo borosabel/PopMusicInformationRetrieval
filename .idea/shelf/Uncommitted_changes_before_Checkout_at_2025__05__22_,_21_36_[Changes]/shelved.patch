@@ -1,0 +1,1144 @@
+Index: GunshotDetect.ipynb
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>{\n \"cells\": [\n  {\n   \"metadata\": {\n    \"ExecuteTime\": {\n     \"end_time\": \"2025-03-15T09:28:54.665033Z\",\n     \"start_time\": \"2025-03-15T09:28:52.964574Z\"\n    }\n   },\n   \"cell_type\": \"code\",\n   \"source\": [\n    \"import pandas as pd\\n\",\n    \"from sklearn.model_selection import train_test_split\\n\",\n    \"import GunshotDataset\\n\",\n    \"import gunshot_utils as utils\\n\",\n    \"import importlib\\n\",\n    \"import torch as th\\n\",\n    \"from torch.utils.data import DataLoader\\n\",\n    \"import torch.nn as nn\\n\",\n    \"import torch.nn.functional as F\\n\",\n    \"import librosa\\n\",\n    \"import ast\\n\",\n    \"import pickle\\n\",\n    \"import re\\n\",\n    \"import soundfile as sf\\n\",\n    \"from pydub.playback import play\\n\",\n    \"import os\\n\",\n    \"import numpy as np\\n\",\n    \"import torchaudio\\n\",\n    \"import GunshotModel\\n\",\n    \"import GunshotDetection\\n\",\n    \"from torch.optim import Adam\\n\",\n    \"import torch.nn as nn\\n\",\n    \"\\n\",\n    \"importlib.reload(utils)\\n\",\n    \"importlib.reload(GunshotDetection)\\n\",\n    \"importlib.reload(GunshotDataset)\\n\",\n    \"importlib.reload(GunshotModel)\"\n   ],\n   \"id\": \"2ac06f6cba0d1f6f\",\n   \"outputs\": [\n    {\n     \"name\": \"stderr\",\n     \"output_type\": \"stream\",\n     \"text\": [\n      \"/Users/abelboros/.pyenv/versions/thesis_env/lib/python3.9/site-packages/pydub/utils.py:170: RuntimeWarning: Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work\\n\",\n      \"  warn(\\\"Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work\\\", RuntimeWarning)\\n\"\n     ]\n    },\n    {\n     \"data\": {\n      \"text/plain\": [\n       \"<module 'GunshotModel' from '/Users/abelboros/Documents/Personal/Code/PopMusicInformationRetrieval/GunshotModel.py'>\"\n      ]\n     },\n     \"execution_count\": 1,\n     \"metadata\": {},\n     \"output_type\": \"execute_result\"\n    }\n   ],\n   \"execution_count\": 1\n  },\n  {\n   \"metadata\": {\n    \"ExecuteTime\": {\n     \"end_time\": \"2025-03-15T11:16:46.501397Z\",\n     \"start_time\": \"2025-03-15T11:16:46.495331Z\"\n    }\n   },\n   \"cell_type\": \"code\",\n   \"source\": [\n    \"# with open(\\\"pkl_data/gunshot_data.pkl\\\", \\\"wb\\\") as file:     # DUMP\\n\",\n    \"#     pickle.dump(gunshot_df, file)\\n\",\n    \"\\n\",\n    \"with open(\\\"./pkl_data/gunshot_data.pkl\\\", \\\"rb\\\") as file:     # OPEN\\n\",\n    \"    gunshot_df = pickle.load(file)\\n\",\n    \"    gunshot_df['label'] = 1\"\n   ],\n   \"id\": \"b4684caa09dc36fc\",\n   \"outputs\": [],\n   \"execution_count\": 31\n  },\n  {\n   \"metadata\": {\n    \"ExecuteTime\": {\n     \"end_time\": \"2025-03-15T11:17:37.893784Z\",\n     \"start_time\": \"2025-03-15T11:17:37.841294Z\"\n    }\n   },\n   \"cell_type\": \"code\",\n   \"source\": [\n    \"# with open(\\\"./pkl_data/music_with_onsets_wav.pkl\\\", \\\"wb\\\") as file:  # DUMP\\n\",\n    \"#     pickle.dump(music_df, file)\\n\",\n    \"#\\n\",\n    \"with open(\\\"./pkl_data/music_with_onsets_wav.pkl\\\", \\\"rb\\\") as file:    # OPEN\\n\",\n    \"    music_df = pickle.load(file)\"\n   ],\n   \"id\": \"b985a548ee4223ee\",\n   \"outputs\": [],\n   \"execution_count\": 33\n  },\n  {\n   \"metadata\": {\n    \"ExecuteTime\": {\n     \"end_time\": \"2025-03-15T11:18:05.158210Z\",\n     \"start_time\": \"2025-03-15T11:18:04.314066Z\"\n    }\n   },\n   \"cell_type\": \"code\",\n   \"source\": [\n    \"# Generate metadata\\n\",\n    \"gunshot_metadata = utils.generate_audio_metadata_from_df(gunshot_df, 'filename')\\n\",\n    \"#\\n\",\n    \"with open(\\\"./gunshot_metadata.pkl\\\", \\\"wb\\\") as file:\\n\",\n    \"    pickle.dump(gunshot_metadata, file)\\n\",\n    \"#\\n\",\n    \"# with open(\\\"pkl_data/gunshot_metadata.pkl\\\", \\\"rb\\\") as file:\\n\",\n    \"#     gunshot_metadata = pickle.load(file)\"\n   ],\n   \"id\": \"749cfc85835a26bc\",\n   \"outputs\": [],\n   \"execution_count\": 35\n  },\n  {\n   \"metadata\": {\n    \"ExecuteTime\": {\n     \"end_time\": \"2025-03-15T11:19:04.659690Z\",\n     \"start_time\": \"2025-03-15T11:18:06.796667Z\"\n    }\n   },\n   \"cell_type\": \"code\",\n   \"source\": [\n    \"# Generate metadata\\n\",\n    \"audio_metadata = utils.generate_audio_metadata_from_df(music_df, 'filename')\\n\",\n    \"\\n\",\n    \"with open(\\\"./audio_metadata.pkl\\\", \\\"wb\\\") as file:\\n\",\n    \"    pickle.dump(audio_metadata, file)\\n\",\n    \"\\n\",\n    \"# with open(\\\"pkl_data/audio_metadata.pkl\\\", \\\"rb\\\") as file:\\n\",\n    \"#     audio_metadata = pickle.load(file)\"\n   ],\n   \"id\": \"944936406a7bf24d\",\n   \"outputs\": [],\n   \"execution_count\": 36\n  },\n  {\n   \"metadata\": {\n    \"ExecuteTime\": {\n     \"end_time\": \"2025-03-15T11:19:04.719843Z\",\n     \"start_time\": \"2025-03-15T11:19:04.704190Z\"\n    }\n   },\n   \"cell_type\": \"code\",\n   \"source\": \"music_df\",\n   \"id\": \"d63d010a3398346\",\n   \"outputs\": [\n    {\n     \"data\": {\n      \"text/plain\": [\n       \"                                               filename  num_gunshots  \\\\\\n\",\n       \"0                           Data/gunshot/8 Iz Enuff.wav             0   \\n\",\n       \"1                         Data/gunshot/Da Graveyard.wav             0   \\n\",\n       \"2                Data/gunshot/I Don't Understand It.wav             0   \\n\",\n       \"3                    Data/gunshot/No Endz, No Skinz.wav             0   \\n\",\n       \"4                                  Data/gunshot/MVP.wav             0   \\n\",\n       \"...                                                 ...           ...   \\n\",\n       \"1359  Data/gunshot/Dr. Dre - The Day the Niggaz Took...             0   \\n\",\n       \"1360  Data/gunshot/Dr. Dre - Bitches Ain't Shit (fea...             0   \\n\",\n       \"1361  Data/gunshot/Dr. Dre - Stranded On Death Row (...             0   \\n\",\n       \"1362  Data/gunshot/Dr. Dre - Nuthin' but a ＂G＂ Thang...             0   \\n\",\n       \"1363  Data/gunshot/Dr. Dre - The Roach (ft. Ruben Cr...             0   \\n\",\n       \"\\n\",\n       \"      gunshot_location_in_seconds  label  \\\\\\n\",\n       \"0                               0      0   \\n\",\n       \"1                               0      0   \\n\",\n       \"2                               0      0   \\n\",\n       \"3                               0      0   \\n\",\n       \"4                               0      0   \\n\",\n       \"...                           ...    ...   \\n\",\n       \"1359                            0      0   \\n\",\n       \"1360                            0      0   \\n\",\n       \"1361                            0      0   \\n\",\n       \"1362                            0      0   \\n\",\n       \"1363                            0      0   \\n\",\n       \"\\n\",\n       \"                                                 onsets  num_onsets  \\n\",\n       \"0     [0.14933333333333335, 0.384, 1.130666666666666...        1650  \\n\",\n       \"1     [0.128, 2.2826666666666666, 2.421333333333333,...        1811  \\n\",\n       \"2     [0.13866666666666666, 0.7893333333333333, 1.10...        1261  \\n\",\n       \"3     [0.14933333333333335, 4.074666666666666, 4.917...        1006  \\n\",\n       \"4     [0.13866666666666666, 0.23466666666666666, 0.5...         867  \\n\",\n       \"...                                                 ...         ...  \\n\",\n       \"1359  [0.07466666666666667, 0.16, 1.7813333333333334...        1327  \\n\",\n       \"1360  [0.256, 0.416, 0.448, 0.6186666666666667, 0.94...        1322  \\n\",\n       \"1361  [0.30933333333333335, 0.384, 1.792, 1.89866666...        1779  \\n\",\n       \"1362  [0.07466666666666667, 0.224, 0.874666666666666...         999  \\n\",\n       \"1363  [0.2773333333333333, 0.9706666666666667, 1.312...         888  \\n\",\n       \"\\n\",\n       \"[1364 rows x 6 columns]\"\n      ],\n      \"text/html\": [\n       \"<div>\\n\",\n       \"<style scoped>\\n\",\n       \"    .dataframe tbody tr th:only-of-type {\\n\",\n       \"        vertical-align: middle;\\n\",\n       \"    }\\n\",\n       \"\\n\",\n       \"    .dataframe tbody tr th {\\n\",\n       \"        vertical-align: top;\\n\",\n       \"    }\\n\",\n       \"\\n\",\n       \"    .dataframe thead th {\\n\",\n       \"        text-align: right;\\n\",\n       \"    }\\n\",\n       \"</style>\\n\",\n       \"<table border=\\\"1\\\" class=\\\"dataframe\\\">\\n\",\n       \"  <thead>\\n\",\n       \"    <tr style=\\\"text-align: right;\\\">\\n\",\n       \"      <th></th>\\n\",\n       \"      <th>filename</th>\\n\",\n       \"      <th>num_gunshots</th>\\n\",\n       \"      <th>gunshot_location_in_seconds</th>\\n\",\n       \"      <th>label</th>\\n\",\n       \"      <th>onsets</th>\\n\",\n       \"      <th>num_onsets</th>\\n\",\n       \"    </tr>\\n\",\n       \"  </thead>\\n\",\n       \"  <tbody>\\n\",\n       \"    <tr>\\n\",\n       \"      <th>0</th>\\n\",\n       \"      <td>Data/gunshot/8 Iz Enuff.wav</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>[0.14933333333333335, 0.384, 1.130666666666666...</td>\\n\",\n       \"      <td>1650</td>\\n\",\n       \"    </tr>\\n\",\n       \"    <tr>\\n\",\n       \"      <th>1</th>\\n\",\n       \"      <td>Data/gunshot/Da Graveyard.wav</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>[0.128, 2.2826666666666666, 2.421333333333333,...</td>\\n\",\n       \"      <td>1811</td>\\n\",\n       \"    </tr>\\n\",\n       \"    <tr>\\n\",\n       \"      <th>2</th>\\n\",\n       \"      <td>Data/gunshot/I Don't Understand It.wav</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>[0.13866666666666666, 0.7893333333333333, 1.10...</td>\\n\",\n       \"      <td>1261</td>\\n\",\n       \"    </tr>\\n\",\n       \"    <tr>\\n\",\n       \"      <th>3</th>\\n\",\n       \"      <td>Data/gunshot/No Endz, No Skinz.wav</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>[0.14933333333333335, 4.074666666666666, 4.917...</td>\\n\",\n       \"      <td>1006</td>\\n\",\n       \"    </tr>\\n\",\n       \"    <tr>\\n\",\n       \"      <th>4</th>\\n\",\n       \"      <td>Data/gunshot/MVP.wav</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>[0.13866666666666666, 0.23466666666666666, 0.5...</td>\\n\",\n       \"      <td>867</td>\\n\",\n       \"    </tr>\\n\",\n       \"    <tr>\\n\",\n       \"      <th>...</th>\\n\",\n       \"      <td>...</td>\\n\",\n       \"      <td>...</td>\\n\",\n       \"      <td>...</td>\\n\",\n       \"      <td>...</td>\\n\",\n       \"      <td>...</td>\\n\",\n       \"      <td>...</td>\\n\",\n       \"    </tr>\\n\",\n       \"    <tr>\\n\",\n       \"      <th>1359</th>\\n\",\n       \"      <td>Data/gunshot/Dr. Dre - The Day the Niggaz Took...</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>[0.07466666666666667, 0.16, 1.7813333333333334...</td>\\n\",\n       \"      <td>1327</td>\\n\",\n       \"    </tr>\\n\",\n       \"    <tr>\\n\",\n       \"      <th>1360</th>\\n\",\n       \"      <td>Data/gunshot/Dr. Dre - Bitches Ain't Shit (fea...</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>[0.256, 0.416, 0.448, 0.6186666666666667, 0.94...</td>\\n\",\n       \"      <td>1322</td>\\n\",\n       \"    </tr>\\n\",\n       \"    <tr>\\n\",\n       \"      <th>1361</th>\\n\",\n       \"      <td>Data/gunshot/Dr. Dre - Stranded On Death Row (...</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>[0.30933333333333335, 0.384, 1.792, 1.89866666...</td>\\n\",\n       \"      <td>1779</td>\\n\",\n       \"    </tr>\\n\",\n       \"    <tr>\\n\",\n       \"      <th>1362</th>\\n\",\n       \"      <td>Data/gunshot/Dr. Dre - Nuthin' but a ＂G＂ Thang...</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>[0.07466666666666667, 0.224, 0.874666666666666...</td>\\n\",\n       \"      <td>999</td>\\n\",\n       \"    </tr>\\n\",\n       \"    <tr>\\n\",\n       \"      <th>1363</th>\\n\",\n       \"      <td>Data/gunshot/Dr. Dre - The Roach (ft. Ruben Cr...</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>0</td>\\n\",\n       \"      <td>[0.2773333333333333, 0.9706666666666667, 1.312...</td>\\n\",\n       \"      <td>888</td>\\n\",\n       \"    </tr>\\n\",\n       \"  </tbody>\\n\",\n       \"</table>\\n\",\n       \"<p>1364 rows × 6 columns</p>\\n\",\n       \"</div>\"\n      ]\n     },\n     \"execution_count\": 37,\n     \"metadata\": {},\n     \"output_type\": \"execute_result\"\n    }\n   ],\n   \"execution_count\": 37\n  },\n  {\n   \"metadata\": {\n    \"ExecuteTime\": {\n     \"end_time\": \"2025-03-15T11:24:39.537194Z\",\n     \"start_time\": \"2025-03-15T11:24:39.521644Z\"\n    }\n   },\n   \"cell_type\": \"code\",\n   \"source\": [\n    \"music_train_df, music_valid_df = train_test_split(music_df, test_size=0.2, random_state=42)\\n\",\n    \"gunshot_train_df, gunshot_valid_df = train_test_split(gunshot_df, test_size=0.2, random_state=42)\"\n   ],\n   \"id\": \"4503b7cd851f2aff\",\n   \"outputs\": [],\n   \"execution_count\": 38\n  },\n  {\n   \"metadata\": {\n    \"ExecuteTime\": {\n     \"end_time\": \"2025-03-15T11:24:40.239212Z\",\n     \"start_time\": \"2025-03-15T11:24:40.231125Z\"\n    }\n   },\n   \"cell_type\": \"code\",\n   \"source\": [\n    \"train_dataset = GunshotDataset.GunshotDataset(music_train_df, gunshot_train_df, audio_metadata, gunshot_prob=0.5, num_samples=8000, real_music_gunshot=False) # This means that with 50% probability it will generate gunshot samples. In total 800 samples.\\n\",\n    \"valid_dataset = GunshotDataset.GunshotDataset(music_valid_df, gunshot_valid_df, audio_metadata, gunshot_prob=0.5, num_samples=1000, real_music_gunshot=False)\\n\",\n    \"train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)\\n\",\n    \"valid_loader = DataLoader(valid_dataset, batch_size=32, shuffle=False)\"\n   ],\n   \"id\": \"c9060896d3ec5936\",\n   \"outputs\": [],\n   \"execution_count\": 39\n  },\n  {\n   \"metadata\": {\n    \"ExecuteTime\": {\n     \"end_time\": \"2025-03-15T11:24:43.329188Z\",\n     \"start_time\": \"2025-03-15T11:24:41.802668Z\"\n    }\n   },\n   \"cell_type\": \"code\",\n   \"source\": [\n    \"waveform, spectrogram = train_dataset.get_random_music_onset()\\n\",\n    \"# plot_spectrogram_rgb(spectrogram)\\n\",\n    \"utils.play_audio(waveform)\\n\",\n    \"utils.plot_spectrogram_channels(spectrogram, save=True, filename='music_spectogram_triplet.png')\"\n   ],\n   \"id\": \"3c49e7e9d8a89149\",\n   \"outputs\": [],\n   \"execution_count\": 40\n  },\n  {\n   \"metadata\": {\n    \"ExecuteTime\": {\n     \"end_time\": \"2025-03-15T11:24:44.987615Z\",\n     \"start_time\": \"2025-03-15T11:24:43.708850Z\"\n    }\n   },\n   \"cell_type\": \"code\",\n   \"source\": [\n    \"waveform, spectrogram = train_dataset.get_random_music_with_gunshot()\\n\",\n    \"# plot_spectrogram_rgb(spectrogram)\\n\",\n    \"utils.play_audio(waveform)\\n\",\n    \"utils.plot_spectrogram_channels(spectrogram, save=True, filename='gunshot_spectogram_triplet.png')\"\n   ],\n   \"id\": \"c5010e5a9117aa94\",\n   \"outputs\": [],\n   \"execution_count\": 41\n  },\n  {\n   \"metadata\": {\n    \"ExecuteTime\": {\n     \"end_time\": \"2025-03-15T11:25:09.719469Z\",\n     \"start_time\": \"2025-03-15T11:24:46.678351Z\"\n    }\n   },\n   \"cell_type\": \"code\",\n   \"source\": [\n    \"device = th.device(\\\"cuda\\\" if th.cuda.is_available() else \\\"cpu\\\")\\n\",\n    \"use_cuda = th.cuda.is_available()\\n\",\n    \"torchaudio.set_audio_backend(\\\"soundfile\\\")\\n\",\n    \"\\n\",\n    \"mean, std = utils.compute_mean_std(train_loader)\\n\",\n    \"mean = mean.to(device)\\n\",\n    \"std = std.to(device)\"\n   ],\n   \"id\": \"55359a0151cb9558\",\n   \"outputs\": [\n    {\n     \"name\": \"stderr\",\n     \"output_type\": \"stream\",\n     \"text\": [\n      \"/var/folders/17/b1txq3n15cb37zv_2hv6vwjr0000gn/T/ipykernel_85334/2989080760.py:3: UserWarning: torchaudio._backend.set_audio_backend has been deprecated. With dispatcher enabled, this function is no-op. You can remove the function call.\\n\",\n      \"  torchaudio.set_audio_backend(\\\"soundfile\\\")\\n\",\n      \"Computing mean and std: 100%|██████████| 250/250 [00:22<00:00, 11.12it/s]\\n\"\n     ]\n    }\n   ],\n   \"execution_count\": 42\n  },\n  {\n   \"metadata\": {\n    \"ExecuteTime\": {\n     \"end_time\": \"2025-03-15T11:28:38.526716Z\",\n     \"start_time\": \"2025-03-15T11:25:12.905877Z\"\n    }\n   },\n   \"cell_type\": \"code\",\n   \"source\": [\n    \"# Initialize model\\n\",\n    \"num_frames = utils.NUM_FRAMES\\n\",\n    \"model = GunshotModel.GunshotDetectionCNN(num_frames)\\n\",\n    \"\\n\",\n    \"# Define optimizer and loss\\n\",\n    \"criterion = nn.BCELoss()\\n\",\n    \"optimizer = Adam(model.parameters(), lr=0.001)\\n\",\n    \"\\n\",\n    \"# Calculate mean and std for normalization\\n\",\n    \"means = []\\n\",\n    \"stds = []\\n\",\n    \"for spectrogram, _, _ in train_loader:\\n\",\n    \"    means.append(spectrogram.mean())\\n\",\n    \"    stds.append(spectrogram.std())\\n\",\n    \"mean = th.tensor(means).mean()\\n\",\n    \"std = th.tensor(stds).mean()\\n\",\n    \"\\n\",\n    \"# Initialize training manager\\n\",\n    \"training_manager = GunshotDetection.GunshotDetectionTrainer(\\n\",\n    \"    model=model,\\n\",\n    \"    train_loader=train_loader,\\n\",\n    \"    valid_loader=valid_loader,\\n\",\n    \"    optimizer=optimizer,\\n\",\n    \"    criterion=criterion,\\n\",\n    \"    num_epochs=10,\\n\",\n    \"    mean=mean,\\n\",\n    \"    std=std,\\n\",\n    \"    eval_metric='f1',\\n\",\n    \"    patience=3\\n\",\n    \")\\n\",\n    \"\\n\",\n    \"# Train the model\\n\",\n    \"best_threshold, best_score, last_failed_samples = training_manager.train()\"\n   ],\n   \"id\": \"e657dc6ec3d52aa8\",\n   \"outputs\": [\n    {\n     \"name\": \"stderr\",\n     \"output_type\": \"stream\",\n     \"text\": [\n      \"/Users/abelboros/.pyenv/versions/thesis_env/lib/python3.9/site-packages/torch/optim/lr_scheduler.py:62: UserWarning: The verbose parameter is deprecated. Please use get_last_lr() to access the learning rate.\\n\",\n      \"  warnings.warn(\\n\"\n     ]\n    },\n    {\n     \"name\": \"stdout\",\n     \"output_type\": \"stream\",\n     \"text\": [\n      \"Epoch 1/10\\n\"\n     ]\n    },\n    {\n     \"name\": \"stderr\",\n     \"output_type\": \"stream\",\n     \"text\": [\n      \"Epoch [1] Training: 100%|██████████| 250/250 [00:39<00:00,  6.32it/s, loss=0.0959] \\n\"\n     ]\n    },\n    {\n     \"name\": \"stdout\",\n     \"output_type\": \"stream\",\n     \"text\": [\n      \"Epoch [1], Training Loss: 0.1467\\n\",\n      \"Epoch [1], Validation Loss: 0.0450\\n\",\n      \"Epoch [1], AUC-ROC: 0.9969, PR-AUC: 0.9976\\n\",\n      \"New best f1: 0.9819, model saved.\\n\",\n      \"Epoch 2/10\\n\"\n     ]\n    },\n    {\n     \"name\": \"stderr\",\n     \"output_type\": \"stream\",\n     \"text\": [\n      \"Epoch [2] Training: 100%|██████████| 250/250 [00:35<00:00,  7.06it/s, loss=0.243]   \\n\"\n     ]\n    },\n    {\n     \"name\": \"stdout\",\n     \"output_type\": \"stream\",\n     \"text\": [\n      \"Epoch [2], Training Loss: 0.0779\\n\",\n      \"Epoch [2], Validation Loss: 0.0443\\n\",\n      \"Epoch [2], AUC-ROC: 0.9974, PR-AUC: 0.9980\\n\",\n      \"Epoch 3/10\\n\"\n     ]\n    },\n    {\n     \"name\": \"stderr\",\n     \"output_type\": \"stream\",\n     \"text\": [\n      \"Epoch [3] Training: 100%|██████████| 250/250 [00:37<00:00,  6.74it/s, loss=0.0141]  \\n\"\n     ]\n    },\n    {\n     \"name\": \"stdout\",\n     \"output_type\": \"stream\",\n     \"text\": [\n      \"Epoch [3], Training Loss: 0.0763\\n\",\n      \"Epoch [3], Validation Loss: 0.0963\\n\",\n      \"Epoch [3], AUC-ROC: 0.9988, PR-AUC: 0.9987\\n\",\n      \"Epoch 4/10\\n\"\n     ]\n    },\n    {\n     \"name\": \"stderr\",\n     \"output_type\": \"stream\",\n     \"text\": [\n      \"Epoch [4] Training: 100%|██████████| 250/250 [00:35<00:00,  7.11it/s, loss=0.0474]  \\n\"\n     ]\n    },\n    {\n     \"name\": \"stdout\",\n     \"output_type\": \"stream\",\n     \"text\": [\n      \"Epoch [4], Training Loss: 0.0484\\n\",\n      \"Epoch [4], Validation Loss: 0.2005\\n\",\n      \"Epoch [4], AUC-ROC: 0.9993, PR-AUC: 0.9993\\n\",\n      \"No improvement in f1 for 3 epochs. Stopping training.\\n\"\n     ]\n    },\n    {\n     \"data\": {\n      \"text/plain\": [\n       \"<Figure size 1000x600 with 1 Axes>\"\n      ],\n      \"image/png\": \"iVBORw0KGgoAAAANSUhEUgAAA04AAAIjCAYAAAA0vUuxAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjcuMCwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy88F64QAAAACXBIWXMAAA9hAAAPYQGoP6dpAACE7klEQVR4nO3dd3gU1eLG8XeySXbTQwlJgEDoRaogCFyK94IgiOJFRUSaioqgIlZsgA3btVwb/hTEBljxWpAqWBAVhSBNBKSTEFoK6cnO74+QJZvdMAmENL6f58lDdvbMzJk9O2HfPTPnGKZpmgIAAAAAFMunoisAAAAAAJUdwQkAAAAALBCcAAAAAMACwQkAAAAALBCcAAAAAMACwQkAAAAALBCcAAAAAMACwQkAAAAALBCcAAAAAMACwQlApTFmzBjFxsae1rrTpk2TYRhlW6FKZteuXTIMQ3PmzCn3fRuGoWnTprkez5kzR4ZhaNeuXZbrxsbGasyYMWVanzN5r1RHFfneQNkoaMPnnnuuoqsCoBgEJwCWDMMo0c/KlSsruqrnvNtvv12GYWj79u3FlnnwwQdlGIb++OOPcqxZ6R04cEDTpk1TXFxcRVfFpeDDrWEYevzxx72WGTFihAzDUHBw8GntY+HChW4htTLbtGmTrrvuOtWrV092u11169bViBEjtGnTpoqumofCbeft56mnnqroKgKo5HwrugIAKr/33nvP7fG7776rpUuXeixv1arVGe3nzTfflNPpPK11H3roId1///1ntP/qYMSIEXr55Zc1d+5cPfLII17LzJs3T23btlW7du1Oez8jR47UNddcI7vdftrbsHLgwAFNnz5dsbGx6tChg9tzZ/JeKQsOh0Pz5s3TQw895LY8LS1N//vf/+RwOE572wsXLtSrr75aqvDUsGFDZWRkyM/P77T3W1qfffaZhg8frpo1a+qGG25Qo0aNtGvXLs2aNUuffPKJ5s+fryuuuKLc6lNSw4cP18CBAz2Wd+zYsQJqA6AqITgBsHTddde5Pf7555+1dOlSj+VFpaenKzAwsMT7OZMPfb6+vvL15U9a165d1bRpU82bN89rcFq9erV27tx5xt+u22w22Wy2M9rGmSjPgODNwIED9dlnn2n9+vVq3769a/n//vc/ZWdna8CAAfr222/Pej1yc3PldDrl7+9/RmGttHbs2KGRI0eqcePG+v777xUREeF67o477lDPnj01cuRI/fHHH2rcuHG51SstLU1BQUGnLHP++edb/u0CAG+4VA9AmejTp4/atGmj33//Xb169VJgYKAeeOABSfkfJgcNGqS6devKbrerSZMmeuyxx5SXl+e2jaL3rRS+5v///u//1KRJE9ntdl1wwQVas2aN27re7nEyDEMTJ07U559/rjZt2shut+u8887TokWLPOq/cuVKde7cWQ6HQ02aNNEbb7xR4vumfvjhB1111VVq0KCB7Ha7YmJidOeddyojI8Pj+IKDg7V//34NGTJEwcHBioiI0N133+3xWiQlJWnMmDEKCwtTeHi4Ro8eraSkJMu6SPm9Tn/++afWrl3r8dzcuXNlGIaGDx+u7OxsPfLII+rUqZPCwsIUFBSknj17asWKFZb78HaPk2maevzxx1W/fn0FBgbqoosu8nrJ1tGjR3X33Xerbdu2Cg4OVmhoqC655BKtX7/eVWblypW64IILJEljx451XU5VcA+Pt3uc0tLSdNdddykmJkZ2u10tWrTQc889J9M03cqV5n1RnG7duqlRo0aaO3eu2/IPPvhAAwYMUM2aNb2u980336hnz54KCgpSSEiIBg0a5PYajRkzRq+++qqrngU/kvv58OKLL7rOh82bNxd7j9Off/6pq6++WhEREQoICFCLFi304IMPup5PTU3VpEmTFBsbK7vdrjp16qhfv35e3zuFPfvss0pPT9f//d//uYUmSapdu7beeOMNpaWl6ZlnnpEkffLJJzIMQ999953Htt544w0ZhqGNGze61fvKK69UzZo15XA41LlzZ33xxRdu6xW8B7/77jvdeuutqlOnjurXr3/KepdUbGysLr30Ui1ZskQdOnSQw+FQ69at9dlnn3mU/fvvv3XVVVepZs2aCgwM1IUXXqivv/7ao1xmZqamTZum5s2by+FwKDo6Wv/+97+1Y8cOj7JWf+8SEhI0duxY1a9fX3a7XdHR0br88stLdM8hgNPH17MAysyRI0d0ySWX6JprrtF1112nyMhISfkfcIKDgzV58mQFBwfr22+/1SOPPKKUlBQ9++yzltudO3euUlNTdfPNN8swDD3zzDP697//rb///tuy5+HHH3/UZ599pltvvVUhISH673//q6FDh2rPnj2qVauWJGndunUaMGCAoqOjNX36dOXl5enRRx/1+EBYnI8//ljp6ekaP368atWqpV9//VUvv/yy9u3bp48//titbF5envr376+uXbvqueee07Jly/Sf//xHTZo00fjx4yXlB5DLL79cP/74o2655Ra1atVKCxYs0OjRo0tUnxEjRmj69OmaO3euzj//fLd9f/TRR+rZs6caNGigw4cP66233tLw4cM1btw4paamatasWerfv79+/fVXj8vjrDzyyCN6/PHHNXDgQA0cOFBr167VxRdfrOzsbLdyf//9tz7//HNdddVVatSokQ4ePKg33nhDvXv31ubNm1W3bl21atVKjz76qB555BHddNNN6tmzpySpe/fuXvdtmqYuu+wyrVixQjfccIM6dOigxYsX65577tH+/fv1wgsvuJUvyfvCyvDhw/X+++/rqaeekmEYOnz4sJYsWaL33nvPawh77733NHr0aPXv319PP/200tPT9frrr+sf//iH1q1bp9jYWN188806cOCA10thC7z99tvKzMzUTTfdJLvdrpo1a3q9bPGPP/5Qz5495efnp5tuukmxsbHasWOHvvzySz3xxBOSpFtuuUWffPKJJk6cqNatW+vIkSP68ccftWXLFrf3TlFffvmlYmNjXe1SVK9evRQbG+sKEIMGDVJwcLA++ugj9e7d263shx9+qPPOO09t2rSRlH/fVI8ePVSvXj3df//9CgoK0kcffaQhQ4bo008/9bj879Zbb1VERIQeeeQRpaWlFVvnAunp6Tp8+LDH8vDwcLde623btmnYsGG65ZZbNHr0aL399tu66qqrtGjRIvXr10+SdPDgQXXv3l3p6em6/fbbVatWLb3zzju67LLL9Mknn7jqmpeXp0svvVTLly/XNddcozvuuEOpqalaunSpNm7cqCZNmrj2W5K/d0OHDtWmTZt02223KTY2VomJiVq6dKn27NnDoCnA2WQCQClNmDDBLPrno3fv3qYkc+bMmR7l09PTPZbdfPPNZmBgoJmZmelaNnr0aLNhw4auxzt37jQlmbVq1TKPHj3qWv6///3PlGR++eWXrmVTp071qJMk09/f39y+fbtr2fr1601J5ssvv+xaNnjwYDMwMNDcv3+/a9m2bdtMX19fj2164+34ZsyYYRqGYe7evdvt+CSZjz76qFvZjh07mp06dXI9/vzzz01J5jPPPONalpuba/bs2dOUZL799tuWdbrgggvM+vXrm3l5ea5lixYtMiWZb7zxhmubWVlZbusdO3bMjIyMNK+//nq35ZLMqVOnuh6//fbbpiRz586dpmmaZmJiounv728OGjTIdDqdrnIPPPCAKckcPXq0a1lmZqZbvUwzv63tdrvba7NmzZpij7foe6XgNXv88cfdyl155ZWmYRhu74GSvi+8KXhPPvvss+bGjRtNSeYPP/xgmqZpvvrqq2ZwcLCZlpZmjh492gwKCnKtl5qaaoaHh5vjxo1z215CQoIZFhbmttzb+VV436GhoWZiYqLX5wq/Vr169TJDQkLc3oOmabq1T1hYmDlhwoRTHnNRSUlJpiTz8ssvP2W5yy67zJRkpqSkmKZpmsOHDzfr1Klj5ubmusrEx8ebPj4+bu3+r3/9y2zbtq3b3wan02l2797dbNasmWtZwXvwH//4h9s2i1PwGhX3s3r1alfZhg0bmpLMTz/91LUsOTnZjI6ONjt27OhaNmnSJLf3gGnmt3WjRo3M2NhY1/t89uzZpiTz+eef96hXQXuU9O/dsWPHXO9BAOWLS/UAlBm73a6xY8d6LA8ICHD9npqaqsOHD6tnz55KT0/Xn3/+abndYcOGqUaNGq7HBd9y//3335br9u3b1+3b3Hbt2ik0NNS1bl5enpYtW6YhQ4aobt26rnJNmzbVJZdcYrl9yf340tLSdPjwYXXv3l2maWrdunUe5W+55Ra3xz179nQ7loULF8rX19fVAyXl31N02223lag+Uv59afv27dP333/vWjZ37lz5+/vrqquucm3T399fkuR0OnX06FHl5uaqc+fOlpdqFbVs2TJlZ2frtttuc7u8cdKkSR5l7Xa7fHzy//vJy8vTkSNHFBwcrBYtWpR6vwUWLlwom82m22+/3W35XXfdJdM09c0337gtt3pflMR5552ndu3aad68eZLyX9/LL7/c6319S5cuVVJSkoYPH67Dhw+7fmw2m7p27VqiyyMLDB061LI39NChQ/r+++91/fXXq0GDBm7PFW6f8PBw/fLLLzpw4ECJ95+amipJCgkJOWW5gudTUlIk5Z/HiYmJbqNvfvLJJ3I6nRo2bJik/Ms4v/32W1199dWuvxWHDx/WkSNH1L9/f23btk379+9328+4ceNKdb/dTTfdpKVLl3r8tG7d2q1c3bp13Xq3QkNDNWrUKK1bt04JCQmS8t93Xbp00T/+8Q9XueDgYN10003atWuXNm/eLEn69NNPVbt2ba/ncNHLga3+3gUEBMjf318rV67UsWPHSnzcAM4cwQlAmalXr57rg3hhmzZt0hVXXKGwsDCFhoYqIiLCdXN2cnKy5XaLfvAr+FBRkg8NRdctWL9g3cTERGVkZKhp06Ye5bwt82bPnj0aM2aMatas6bpvqeBypKLH53A4PD70Fq6PJO3evVvR0dEew1m3aNGiRPWRpGuuuUY2m811D05mZqYWLFigSy65xO1D2TvvvKN27drJ4XCoVq1aioiI0Ndff12idils9+7dkqRmzZq5LY+IiHDbn5Qf0l544QU1a9ZMdrtdtWvXVkREhP74449S77fw/uvWrevxYb5gpMeC+hWwel+U1LXXXquPP/5Y27dv108//aRrr73Wa7lt27ZJkv75z38qIiLC7WfJkiVKTEws8T4bNWpkWabgQ3bB5W/FeeaZZ7Rx40bFxMSoS5cumjZtmmV4LHiNCwJUcYoGrAEDBigsLEwffvihq8yHH36oDh06qHnz5pKk7du3yzRNPfzwwx6v09SpUyXJ47UqyetRWLNmzdS3b1+Pn9DQULdyTZs29Qg1BfUsuJdo9+7dXs/Lou+7HTt2qEWLFiUawMbq753dbtfTTz+tb775RpGRkerVq5eeeeYZV5gDcPZwjxOAMlO456VAUlKSevfurdDQUD366KNq0qSJHA6H1q5dq/vuu69EQ0oX922yWeSm/7JetyTy8vLUr18/HT16VPfdd59atmypoKAg7d+/X2PGjPE4vvIaia7gJv9PP/1Ur776qr788kulpqZqxIgRrjLvv/++xowZoyFDhuiee+5RnTp1ZLPZNGPGDK83rJeVJ598Ug8//LCuv/56PfbYY6pZs6Z8fHw0adKkchtivKzeF8OHD9eUKVM0btw41apVSxdffLHXcgXH9d577ykqKsrj+dKMCOntPDtdV199tXr27KkFCxZoyZIlevbZZ/X000/rs88+K7bHNSwsTNHR0ZbzgP3xxx+qV6+eK5DY7XYNGTJECxYs0GuvvaaDBw9q1apVevLJJ13rFLxOd999t/r37+91u0W/0CjL16MyKMl7c9KkSRo8eLA+//xzLV68WA8//LBmzJihb7/9lmHVgbOI4ATgrFq5cqWOHDmizz77TL169XIt37lzZwXW6qQ6derI4XB4nTD2VJPIFtiwYYP++usvvfPOOxo1apRr+dKlS0+7Tg0bNtTy5ct1/Phxt16nrVu3lmo7I0aM0KJFi/TNN99o7ty5Cg0N1eDBg13Pf/LJJ2rcuLE+++wzt2/WC77ZL22dpfyelcLDTx86dMijF+eTTz7RRRddpFmzZrktT0pKUu3atV2PSzKiYeH9L1u2TKmpqW69TgWXghbUr6w1aNBAPXr00MqVKzV+/PhiA1DBZYF16tRR3759T7nN0hx3cQraoPBIdcWJjo7WrbfeqltvvVWJiYk6//zz9cQTT5zyUtVLL71Ub775pn788Ue3y9QK/PDDD9q1a5duvvlmt+XDhg3TO++8o+XLl2vLli0yTdN1mV7hevv5+Vm+TmdbQe9X4fb466+/JMk1AEPDhg29npdF33dNmjTRL7/8opycnDIbSr9Jkya66667dNddd2nbtm3q0KGD/vOf/+j9998vk+0D8MSlegDOqoJvTwt/W5qdna3XXnutoqrkxmazqW/fvvr888/d7vPYvn27x30xxa0vuR+faZp66aWXTrtOAwcOVG5url5//XXXsry8PL388sul2s6QIUMUGBio1157Td98843+/e9/u831463uv/zyi1avXl3qOvft21d+fn56+eWX3bb34osvepS12WwePTsff/yxx70rBfPxlGQY9oEDByovL0+vvPKK2/IXXnhBhmGU+H610/H4449r6tSpp7wHrX///goNDdWTTz6pnJwcj+cPHTrk+r00x12ciIgI9erVS7Nnz9aePXvcnit47fPy8jwujaxTp47q1q2rrKysU27/nnvuUUBAgG6++WYdOXLE7bmjR4/qlltuUWBgoO655x635/r27auaNWvqww8/1IcffqguXbq4XWpXp04d9enTR2+88Ybi4+M99lv4dTrbDhw4oAULFrgep6Sk6N1331WHDh1cvYYDBw7Ur7/+6nbOpKWl6f/+7/8UGxvrum9q6NChOnz4sMf7Uyp9L2d6eroyMzPdljVp0kQhISGW7QbgzNDjBOCs6t69u2rUqKHRo0fr9ttvl2EYeu+998rsUrmyMG3aNC1ZskQ9evTQ+PHjXR/A27Rpo7i4uFOu27JlSzVp0kR333239u/fr9DQUH366adndNP24MGD1aNHD91///3atWuXa/6Y0t7/ExwcrCFDhrjucyp8mZ6U32vw2Wef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ri1btqhBgwaS8q++cjgcbp9Rn332WT311FN6/vnn9corr+jmm2/Wzp07VbNmTde+QkJCFBoaKofDoYyMDL3++ut677335OPjo1GjRunRRx/V+++/L0l68skn9cknn2j27Nlq1aqV/vvf/2rhwoXq06dPsZ+Ni+6nqFGjRmn79u363//+p9DQUN1///265pprtHHjRvn5+WnKlCnKy8vTd999p6CgIG3atEm+vr4KCQnRgw8+qO3bt2vhwoWqXbu2tm/froyMjDL9nJ6ZmamAgAD16tVLDofD7bmCq9FKosKCU+3atWWz2XTw4EG35QcPHnQl4qKio6Pl5+fn1sXWqlUrJSQkKDs725X4C7Pb7bLb7R7L/fz8KtUf1cpWH5w52rT6oU2rJ9q1+qFNq5a8vDwZhiEfHx/XT0U5nf0XlC/676OPPqr+/fu7ytWuXVsdO3Z0PX788cf1+eef66uvvtLEiRNdywteiwJjxoxx9b7MmDFDL7/8sn777TcNGDDAbZ8FPzk5OXrjjTdcvT0TJ07Uo48+6ir7yiuvaMqUKRo6dKik/BGuv/nmG4/9FneMRcts27ZNX375pVatWqXu3btLkubOnauYmBh98cUXuuqqq7R3714NHTpU7du3lyQ1btxYKSkpMgxDe/fuVceOHdWlSxfXc2XNxye/J9Hb34bS/K2osODk7++vTp06afny5RoyZIik/B6l5cuXu715CuvRo4fmzp0rp9PparS//vpL0dHRXkMTAAAAqpYAP5s2P3oycDidTqWmpCokNMTjQ/uvO49qzNtrLLc5Z+wF6tKoZon2XVY6d+7s9vj48eOaNm2avv76a8XHxys3N1cZGRnas2fPKbfTrl071+9BQUEKDQ0tdgRqKb93qCA0SfkdDwXlk5OTdfDgQVdIkeS6iut07zXasmWLfH191bVrV9eyWrVqqUWLFq77vm6//XaNHz9eS5YsUd++fXXFFVe4BngbP368hg4dqrVr1+riiy/WkCFDXAGssqnQ4cgnT56sN998U++88462bNmi8ePHKy0tzTXK3qhRo9wGjxg/fryOHj2qO+64Q3/99Ze+/vprPfnkk5owYUJFHQIAAADKkGEYCvT3dfsJ8Ld5LAv091XPZhGKDnOouLuSDOWPrtezWYTX9Yv+lOUkvEVHx7v77ru1YMECPfnkk/rhhx8UFxentm3b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n6T8MReys7P1/fffKygoSJs3b1ZwcHCp61EapxWc6tWrpz/++EMffPCB1q9fr4CAAI0dO1bDhw93HQwAAABQXV1//fV69tln9d1336lPnz6S8i/TGzp0qMLCwhQWFqa7777bVf62227T4sWL9dFHH5UoOC1btkx//vmnFi9erLp184Pkk08+qUsuucSt3EMPPeT6PTY2Vnfffbfmz5+ve++9VwEBAQoODpavr6+ioqKK3dfcuXOVmZmpd99913WP1SuvvKLBgwfr6aefVmRkpCSpRo0aeuWVV2Sz2dSyZUsNGjRIy5cvP63g9N1332nDhg3auXOnYmLy7z979913dd5552nNmjW64IILtGfPHt1zzz1q2bKlJKlZs2au9ffs2aOhQ4eqbdu2kqTGjRuXug6lddo3JAUFBemmm24qy7oAAADgXOcXmN/zc4LT6VRKaqpCQ0Lk41PkLpOEP0rWm3T9IimqBPcc+ZX8/qKWLVuqe/fumj17tvr06aPt27frhx9+0KOPPipJysvL05NPPqmPPvpI+/fvV3Z2trKyskp8D9OWLVsUExPjCk2S1K1bN49yH374of773/9qx44dOn78uHJzcxUaGlri4yjYV/v27d0GpujRo4ecTqe2bt3qCk7nnXeebDabq0x0dLQ2bNhQqn0V+OuvvxQTE+MKTZLUunVrhYeHa8uWLbrgggs0efJk3XjjjXrvvffUt29fXXXVVWrSpIkk6fbbb9f48eO1ZMkS9e3bV0OHDj2t+8pKo8T3OH3xxReuaxi/+OKLU/4AAAAAp8Uw8i+XK/zjF+i5zD9I8g0o2TZ9A7yvX/TnxCV3JXXDDTfo008/VWpqqt5++201adJEvXv3liQ9++yzeumll3TfffdpxYoViouLU//+/ZWdnV3aV6RYq1ev1ogRIzRw4EB99dVXWrdunR588MEy3UdhRa8sMwxDTqfzrOxLyh8RcNOmTRo0aJC+/fZbtW7dWgsWLJAk3Xjjjfr77781cuRIbdiwQZ07d9bLL7981uoilaLHaciQIUpISFCdOnU0ZMiQYssZhqG8vLyyqBsAAABQaV199dW64447NHfuXL377rsaP368636nVatW6fLLL9d1110nKb/n7K+//lLr1q1LtO1WrVpp7969io+PV3R0tCTp559/divz008/qWHDhnrwwQddy3bv3u1Wxt/f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K3X++efLbreradOmmjNnzlmvJ0qutG26cuVKGYbh8ZOQkFA+FYalGTNm6IILLlBISIjq1KmjIUOGaOvWrZbrffzxx2rZsqUcDofatm2rhQsXlkNtUVKn065z5szxOFcdDkc51RhWXn/9dbVr1841YWa3bt30zTffnHIdztPKr7Ttynla9Tz11FMyDEOTJk06ZbmqcL4SnM6itLQ0tW/fXq+++mqJyu/cuVODBg3SRRddpLi4OE2aNEk33nijFi9efJZripIqbZsW2Lp1q+Lj410/derUOUs1RGl99913mjBhgn7++WctXbpUOTk5uvjii5WWllbsOj/99JOGDx+uG264QevWrdOQIUM0ZMgQbdy4sRxrjlM5nXaV8mexL3yu7t69u5xqDCv169fXU089pd9//12//fab/vnPf+ryyy/Xpk2bvJbnPK0aStuuEudpVbJmzRq98cYbateu3SnLVZnz1US5kGQuWLDglGXuvfde87zzznNbNmzYMLN///5nsWY4XSVp0xUrVpiSzGPHjpVLnXDmEhMTTUnmd999V2yZq6++2hw0aJDbsq5du5o333zz2a4eTlNJ2vXtt982w8LCyq9SOGM1atQw33rrLa/PcZ5WXadqV87TqiM1NdVs1qyZuXTpUrN3797mHXfcUWzZqnK+0uNUiaxevVp9+/Z1W9a/f3+tXr26gmqEstKhQwdFR0erX79+WrVqVUVXB6eQnJwsSapZs2axZThXq56StKskHT9+XA0bNlRMTIzlt96oOHl5eZo/f77S0tLUrVs3r2U4T6uekrSrxHlaVUyYMEGDBg3yOA+9qSrnq29FVwAnJSQkKDIy0m1ZZGSkUlJSlJGRoYCAgAqqGU5XdHS0Zs6cqc6dOysrK0tvvfWW+vTpo19++UXnn39+RVcPRTidTk2aNEk9evRQmzZtii1X3LnKvWuVU0nbtUWLFpo9e7batWun5ORkPffcc+revbs2bdqk+vXrl2ONUZwNGzaoW7duyszMVHBwsBYsWKDWrVt7Lct5WnWUpl05T6uG+fPna+3atVqzZk2JyleV85XgBJxFLVq0UIsWLVyPu3fvrh07duiFF17Qe++9V4E1gzcTJkzQxo0b9eOPP1Z0VVCGStqu3bp1c/uWu3v37mrVqpXeeOMNPfbYY2e7miiBFi1aKC4uTsnJyfrkk080evRofffdd8V+yEbVUJp25Tyt/Pbu3as77rhDS5curXYDdxCcKpGoqCgdPHjQbdnBgwcVGhpKb1M10qVLFz6YV0ITJ07UV199pe+//97yW8viztWoqKizWUWchtK0a1F+fn7q2LGjtm/ffpZqh9Ly9/dX06ZNJUmdOnXSmjVr9NJLL+mNN97wKMt5WnWUpl2L4jytfH7//XclJia6XVmTl5en77//Xq+88oqysrJks9nc1qkq5yv3OFUi3bp10/Lly92WLV269JTX+aLqiYuLU3R0dEVXAyeYpqmJEydqwYIF+vbbb9WoUSPLdThXK7/Tadei8vLytGHDBs7XSszpdCorK8vrc5ynVdep2rUoztPK51//+pc2bNiguLg410/nzp01YsQIxcXFeYQmqQqdrxU9OkV1lpqaaq5bt85ct26dKcl8/vnnzXXr1pm7d+82TdM077//fnPkyJGu8n///bcZGBho3nPPPeaWLVvMV1991bTZbOaiRYsq6hBQRGnb9IUXXjA///xzc9u2beaGDRvMO+64w/Tx8TGXLVtWUYeAIsaPH2+GhYWZK1euNOPj410/6enprjIjR44077//ftfjVatWmb6+vuZzzz1nbtmyxZw6darp5+dnbtiwoSIOAV6cTrtOnz7dXLx4sbljxw7z999/N6+55hrT4XCYmzZtqohDQBH333+/+d1335k7d+40//jjD/P+++83DcMwlyxZYpom52lVVdp25TytmoqOqldVz1eC01lUMBR10Z/Ro0ebpmmao0ePNnv37u2xTocOHUx/f3+zcePG5ttvv13u9UbxStumTz/9tNmkSRPT4XCYNWvWNPv06WN+++23FVN5eOWtPSW5nXu9e/d2tXGBjz76yGzevLnp7+9vnnfeeebXX39dvhXHKZ1Ou06aNMls0KCB6e/vb0ZGRpoDBw40165dW/6Vh1fXX3+92bBhQ9Pf39+MiIgw//Wvf7k+XJsm52lVVdp25TytmooGp6p6vhqmaZrl178FAAAAAFUP9zgBAAAAgAWCEwAAAABYIDgBAAAAgAWCEwAAAABYIDgBAAAAgAWCEwAAAABYIDgBAAAAgAWCEwAAAABYIDgBAFAKhmHo888/r+hqAADKGcEJAFBljBkzRoZhePwMGDCgoqsGAKjmfCu6AgAAlMaAAQP09ttvuy2z2+0VVBsAwLmCHicAQJVit9sVFRXl9lOjRg1J+ZfRvf7667rkkksUEBCgxo0b65NPPnFbf8OGDfrnP/+pgIAA1apVSzfddJOOHz/uVmb27Nk677zzZLfbFR0drYkTJ7o9f/jwYV1xxRUKDAxUs2bN9MUXX5zdgwYAVDiCEwCgWnn44Yc1dOhQrV+/XiNGjNA111yjLVu2SJLS0tLUv39/1ahRQ2vWrNHHH3+sZcuWuQWj119/XRMmTNBNN92kDRs26IsvvlDTpk3d9jF9+nRdffXV+uOPPzRw4ECNGDFCR48eLdfjBACUL8M0TbOiKwEAQEmMGTNG77//vhwOh9vyBx54QA888IAMw9Att9yi119/3fXchRdeqPPPP1+vvfaa3nzzTd13333au3evgoKCJEkLFy7U4MGDdeDAAUVGRqpevXoaO3asHn/8ca91MAxDDz30kB577DFJ+WEsODhY33zzDfdaAUA1xj1OAIAq5aKLLnILRpJUs2ZN1+/dunVze65bt26Ki4uTJG3ZskXt27d3hSZJ6tGjh5xOp7Zu3SrDMHTgwAH961//OmUd2rVr5/o9KChIoaGhSkxMPN1DAgBUAQQnAECVEhQU5HHpXFkJCAgoUTk/Pz+3x4ZhyOl0no0qAQAqCe5xAgBUKz///LPH41atWkmSWrVqpfXr1ystLc31/KpVq+Tj46MWLVooJCREsbGxWr58ebnWGQBQ+dHjBACoUrKyspSQkOC2zNfXV7Vr15Ykffzxx+rcubP+8Y9/6IMPPtCvv/6qWbNmSZJGjBihqVOnavTo0Zo2bZoOHTqk2267TSNHjlRkZKQkadq0abrllltUp04dXXLJJUpNTdWqVat02223le+BAgAqFYITAKBKWbRokaKjo92WtWjRQn/++aek/BHv5s+fr1tvvVXR0dGaN2+eWrduLUkKDAzU4sWLdccdd+iCCy5QYGCghg4dqueff961rdGjRyszM1MvvPCC7r77btWuXVtXXnll+R0gAKBSYlQ9AEC1YRiGFixYoCFDhlR0VQAA1Qz3OAEAAACABYITAAAAAFjgHicAQLXB1ecAgLOFHicAAAAAsEBwAgAAAAALBCcAAAAAsEBwAgAAAAALBCcAAAAAsEBwAgAAAAALBCcAAAAAsEBwAgAAAAAL/w8TbDyNO4lfbwAAAABJRU5ErkJggg==\\n\"\n     },\n     \"metadata\": {},\n     \"output_type\": \"display_data\"\n    }\n   ],\n   \"execution_count\": 43\n  },\n  {\n   \"metadata\": {\n    \"ExecuteTime\": {\n     \"end_time\": \"2025-01-27T17:57:29.926389Z\",\n     \"start_time\": \"2025-01-27T17:57:29.915574Z\"\n    }\n   },\n   \"cell_type\": \"code\",\n   \"source\": [\n    \"def manual_evaluate_test(model, feature, threshold, frame_size=utils.NUM_FRAMES, sampling_rate=utils.SAMPLING_RATE, hop_length=utils.HOP_LENGTH, mean=None, std=None, step_size=None, filter_time_sec=0):\\n\",\n    \"    \\\"\\\"\\\"\\n\",\n    \"    Manually evaluate the model on an audio feature, returning time positions where gunshots are detected.\\n\",\n    \"\\n\",\n    \"    Parameters:\\n\",\n    \"        model: The trained model.\\n\",\n    \"        feature: The feature (e.g., spectrogram) to evaluate.\\n\",\n    \"        threshold: The prediction threshold for gunshots.\\n\",\n    \"        frame_size: Number of frames to use in each evaluation.\\n\",\n    \"        sampling_rate: Audio sampling rate.\\n\",\n    \"        hop_length: Hop length in samples for each frame.\\n\",\n    \"        mean: Mean for normalization.\\n\",\n    \"        std: Standard deviation for normalization.\\n\",\n    \"        step_size: Step size for moving through frames (default: frame_size // 2).\\n\",\n    \"        filter_time_sec: Time (in seconds) to filter out close consecutive predictions.\\n\",\n    \"    \\n\",\n    \"    Returns:\\n\",\n    \"        List of tuples (minutes, seconds, output) where gunshots are detected along with the model's output.\\n\",\n    \"    \\\"\\\"\\\"\\n\",\n    \"    if mean is None or std is None:\\n\",\n    \"        raise ValueError(\\\"Mean and std must be provided for normalization.\\\")\\n\",\n    \"\\n\",\n    \"    mean = mean.to(device)\\n\",\n    \"    std = std.to(device)\\n\",\n    \"    model = model.to(device)\\n\",\n    \"    model.eval()\\n\",\n    \"\\n\",\n    \"    predictions = []\\n\",\n    \"\\n\",\n    \"    feature = feature.to(device)\\n\",\n    \"    feature = (feature - mean) / std\\n\",\n    \"\\n\",\n    \"    num_frames = feature.shape[2]\\n\",\n    \"\\n\",\n    \"    if step_size is None:\\n\",\n    \"        step_size = 1\\n\",\n    \"\\n\",\n    \"    total_iterations = 0\\n\",\n    \"\\n\",\n    \"    with th.no_grad():\\n\",\n    \"        for j in range(0, num_frames - frame_size + 1, step_size):\\n\",\n    \"            total_iterations += 1\\n\",\n    \"            start = j\\n\",\n    \"            end = j + frame_size\\n\",\n    \"\\n\",\n    \"            input_frame = feature[:, :, start:end].unsqueeze(0).float()\\n\",\n    \"            output = model(input_frame).squeeze().item()\\n\",\n    \"            predictions.append((output, start))\\n\",\n    \"\\n\",\n    \"        print(\\\"Number of predictions\\\", len(predictions))\\n\",\n    \"\\n\",\n    \"        res = []\\n\",\n    \"        for output, start in predictions:\\n\",\n    \"            if output >= threshold:\\n\",\n    \"                time_in_seconds = start * hop_length / sampling_rate\\n\",\n    \"                minutes = int(time_in_seconds // 60)\\n\",\n    \"                seconds = time_in_seconds % 60\\n\",\n    \"                res.append((minutes, seconds, time_in_seconds, output))\\n\",\n    \"\\n\",\n    \"    print(len(res))\\n\",\n    \"\\n\",\n    \"    filtered_res = []\\n\",\n    \"    last_detection_time = -float('inf')\\n\",\n    \"\\n\",\n    \"    for minutes, seconds, time_in_seconds, output in res:\\n\",\n    \"        if time_in_seconds - last_detection_time >= filter_time_sec:\\n\",\n    \"            filtered_res.append((minutes, seconds, output))\\n\",\n    \"            last_detection_time = time_in_seconds\\n\",\n    \"\\n\",\n    \"    return filtered_res\"\n   ],\n   \"id\": \"3b4e2804c3bd2c90\",\n   \"outputs\": [],\n   \"execution_count\": 108\n  },\n  {\n   \"metadata\": {\n    \"ExecuteTime\": {\n     \"end_time\": \"2025-01-27T17:57:59.532257Z\",\n     \"start_time\": \"2025-01-27T17:57:57.868703Z\"\n    }\n   },\n   \"cell_type\": \"code\",\n   \"source\": \"spectrograms, sample_rates = utils.preprocess_audio(['/Users/borosabel/Documents/Uni/Thesis/PopMIR/50 Cent - Many Men (Wish Death) (Dirty Version).mp3'])\",\n   \"id\": \"bb9a0a5f794ee55a\",\n   \"outputs\": [\n    {\n     \"name\": \"stderr\",\n     \"output_type\": \"stream\",\n     \"text\": [\n      \"100%|██████████| 1/1 [00:01<00:00,  1.64s/it]\\n\"\n     ]\n    }\n   ],\n   \"execution_count\": 110\n  },\n  {\n   \"metadata\": {\n    \"ExecuteTime\": {\n     \"end_time\": \"2025-01-27T17:58:36.641877Z\",\n     \"start_time\": \"2025-01-27T17:58:32.156758Z\"\n    }\n   },\n   \"cell_type\": \"code\",\n   \"source\": [\n    \"predictions = manual_evaluate_test(model, spectrograms[0], threshold=best_threshold, mean=mean, std=std, step_size=1, filter_time_sec=1)\\n\",\n    \"\\n\",\n    \"if(len(predictions) > 0):\\n\",\n    \"    print(f\\\"Current treshold is {best_threshold} \\\\n\\\")\\n\",\n    \"\\n\",\n    \"    for minutes, seconds, output in predictions:\\n\",\n    \"        print(f\\\"Detected gunshot at {minutes}m {seconds:.2f}s with model output: {output:.4f}\\\")\\n\",\n    \"else:\\n\",\n    \"    print(\\\"No predictions\\\")\"\n   ],\n   \"id\": \"6c2eff7a51ed245b\",\n   \"outputs\": [\n    {\n     \"name\": \"stdout\",\n     \"output_type\": \"stream\",\n     \"text\": [\n      \"Number of predictions 25598\\n\",\n      \"2192\\n\",\n      \"Current treshold is 0.5 \\n\",\n      \"\\n\",\n      \"Detected gunshot at 0m 2.79s with model output: 0.5851\\n\",\n      \"Detected gunshot at 0m 5.58s with model output: 0.5480\\n\",\n      \"Detected gunshot at 0m 8.38s with model output: 0.5358\\n\",\n      \"Detected gunshot at 0m 10.51s with model output: 0.5147\\n\",\n      \"Detected gunshot at 0m 11.52s with model output: 0.9789\\n\",\n      \"Detected gunshot at 0m 12.53s with model output: 0.9997\\n\",\n      \"Detected gunshot at 0m 13.54s with model output: 0.9995\\n\",\n      \"Detected gunshot at 0m 33.76s with model output: 0.5824\\n\",\n      \"Detected gunshot at 0m 38.65s with model output: 0.5282\\n\",\n      \"Detected gunshot at 0m 43.04s with model output: 0.5475\\n\",\n      \"Detected gunshot at 0m 44.05s with model output: 0.9880\\n\",\n      \"Detected gunshot at 0m 45.06s with model output: 0.9979\\n\",\n      \"Detected gunshot at 0m 46.07s with model output: 0.9570\\n\",\n      \"Detected gunshot at 0m 47.08s with model output: 0.9985\\n\",\n      \"Detected gunshot at 0m 48.09s with model output: 0.9065\\n\",\n      \"Detected gunshot at 0m 49.10s with model output: 0.9821\\n\",\n      \"Detected gunshot at 0m 50.11s with model output: 0.8627\\n\",\n      \"Detected gunshot at 0m 54.27s with model output: 0.5087\\n\",\n      \"Detected gunshot at 1m 5.79s with model output: 0.6053\\n\",\n      \"Detected gunshot at 1m 9.43s with model output: 0.5270\\n\",\n      \"Detected gunshot at 1m 10.44s with model output: 0.5923\\n\",\n      \"Detected gunshot at 1m 11.58s with model output: 0.5207\\n\",\n      \"Detected gunshot at 1m 12.59s with model output: 0.6674\\n\",\n      \"Detected gunshot at 1m 13.97s with model output: 0.6913\\n\",\n      \"Detected gunshot at 1m 15.45s with model output: 0.6028\\n\",\n      \"Detected gunshot at 1m 18.08s with model output: 0.5766\\n\",\n      \"Detected gunshot at 1m 20.91s with model output: 0.5362\\n\",\n      \"Detected gunshot at 1m 23.72s with model output: 0.6140\\n\",\n      \"Detected gunshot at 1m 25.82s with model output: 0.5611\\n\",\n      \"Detected gunshot at 1m 27.59s with model output: 0.5657\\n\",\n      \"Detected gunshot at 1m 28.65s with model output: 0.6251\\n\",\n      \"Detected gunshot at 1m 29.66s with model output: 0.7985\\n\",\n      \"Detected gunshot at 1m 31.86s with model output: 0.5627\\n\",\n      \"Detected gunshot at 1m 37.80s with model output: 0.5391\\n\",\n      \"Detected gunshot at 1m 39.36s with model output: 0.5984\\n\",\n      \"Detected gunshot at 1m 40.79s with model output: 0.5421\\n\",\n      \"Detected gunshot at 1m 47.78s with model output: 0.5725\\n\",\n      \"Detected gunshot at 1m 51.11s with model output: 0.5313\\n\",\n      \"Detected gunshot at 1m 56.78s with model output: 0.5567\\n\",\n      \"Detected gunshot at 1m 59.59s with model output: 0.5276\\n\",\n      \"Detected gunshot at 2m 1.24s with model output: 0.6790\\n\",\n      \"Detected gunshot at 2m 4.58s with model output: 0.7139\\n\",\n      \"Detected gunshot at 2m 5.68s with model output: 0.5415\\n\",\n      \"Detected gunshot at 2m 7.18s with model output: 0.5350\\n\",\n      \"Detected gunshot at 2m 8.62s with model output: 0.6155\\n\",\n      \"Detected gunshot at 2m 11.72s with model output: 0.5374\\n\",\n      \"Detected gunshot at 2m 13.07s with model output: 0.5048\\n\",\n      \"Detected gunshot at 2m 14.08s with model output: 0.6016\\n\",\n      \"Detected gunshot at 2m 15.09s with model output: 0.5614\\n\",\n      \"Detected gunshot at 2m 17.28s with model output: 0.5352\\n\",\n      \"Detected gunshot at 2m 18.98s with model output: 0.5470\\n\",\n      \"Detected gunshot at 2m 20.03s with model output: 0.6577\\n\",\n      \"Detected gunshot at 2m 23.23s with model output: 0.5275\\n\",\n      \"Detected gunshot at 2m 26.15s with model output: 0.5875\\n\",\n      \"Detected gunshot at 2m 28.46s with model output: 0.5220\\n\",\n      \"Detected gunshot at 2m 34.33s with model output: 0.5003\\n\",\n      \"Detected gunshot at 2m 35.45s with model output: 0.6299\\n\",\n      \"Detected gunshot at 2m 44.80s with model output: 0.5282\\n\",\n      \"Detected gunshot at 2m 50.30s with model output: 0.5303\\n\",\n      \"Detected gunshot at 2m 51.80s with model output: 0.5099\\n\",\n      \"Detected gunshot at 2m 54.61s with model output: 0.5913\\n\",\n      \"Detected gunshot at 2m 56.23s with model output: 0.5300\\n\",\n      \"Detected gunshot at 2m 57.77s with model output: 0.5703\\n\",\n      \"Detected gunshot at 2m 59.36s with model output: 0.5892\\n\",\n      \"Detected gunshot at 3m 1.06s with model output: 0.5551\\n\",\n      \"Detected gunshot at 3m 2.53s with model output: 0.5700\\n\",\n      \"Detected gunshot at 3m 5.19s with model output: 0.5219\\n\",\n      \"Detected gunshot at 3m 6.69s with model output: 0.5388\\n\",\n      \"Detected gunshot at 3m 8.13s with model output: 0.6413\\n\",\n      \"Detected gunshot at 3m 11.23s with model output: 0.5463\\n\",\n      \"Detected gunshot at 3m 12.60s with model output: 0.5384\\n\",\n      \"Detected gunshot at 3m 13.61s with model output: 0.5642\\n\",\n      \"Detected gunshot at 3m 16.79s with model output: 0.5325\\n\",\n      \"Detected gunshot at 3m 18.50s with model output: 0.5294\\n\",\n      \"Detected gunshot at 3m 19.54s with model output: 0.6350\\n\",\n      \"Detected gunshot at 3m 22.75s with model output: 0.5300\\n\",\n      \"Detected gunshot at 3m 25.66s with model output: 0.5412\\n\",\n      \"Detected gunshot at 3m 27.97s with model output: 0.5149\\n\",\n      \"Detected gunshot at 3m 29.01s with model output: 0.6153\\n\",\n      \"Detected gunshot at 3m 30.88s with model output: 0.5747\\n\",\n      \"Detected gunshot at 3m 40.93s with model output: 0.5429\\n\",\n      \"Detected gunshot at 3m 54.72s with model output: 0.6662\\n\",\n      \"Detected gunshot at 3m 58.69s with model output: 0.6030\\n\",\n      \"Detected gunshot at 4m 0.67s with model output: 0.5858\\n\",\n      \"Detected gunshot at 4m 1.73s with model output: 0.6142\\n\",\n      \"Detected gunshot at 4m 2.99s with model output: 0.5767\\n\",\n      \"Detected gunshot at 4m 4.72s with model output: 0.5704\\n\",\n      \"Detected gunshot at 4m 6.21s with model output: 0.6776\\n\",\n      \"Detected gunshot at 4m 7.34s with model output: 0.5334\\n\",\n      \"Detected gunshot at 4m 10.74s with model output: 0.5109\\n\",\n      \"Detected gunshot at 4m 12.10s with model output: 0.5127\\n\",\n      \"Detected gunshot at 4m 13.11s with model output: 0.6600\\n\",\n      \"Detected gunshot at 4m 14.12s with model output: 0.5011\\n\",\n      \"Detected gunshot at 4m 16.31s with model output: 0.5796\\n\",\n      \"Detected gunshot at 4m 18.01s with model output: 0.5501\\n\",\n      \"Detected gunshot at 4m 19.05s with model output: 0.5746\\n\",\n      \"Detected gunshot at 4m 22.26s with model output: 0.5547\\n\",\n      \"Detected gunshot at 4m 25.17s with model output: 0.5349\\n\",\n      \"Detected gunshot at 4m 27.83s with model output: 0.6735\\n\"\n     ]\n    }\n   ],\n   \"execution_count\": 111\n  },\n  {\n   \"metadata\": {},\n   \"cell_type\": \"code\",\n   \"outputs\": [],\n   \"execution_count\": null,\n   \"source\": \"\",\n   \"id\": \"9825c15b950eba7b\"\n  }\n ],\n \"metadata\": {\n  \"kernelspec\": {\n   \"display_name\": \"Python 3\",\n   \"language\": \"python\",\n   \"name\": \"python3\"\n  },\n  \"language_info\": {\n   \"codemirror_mode\": {\n    \"name\": \"ipython\",\n    \"version\": 2\n   },\n   \"file_extension\": \".py\",\n   \"mimetype\": \"text/x-python\",\n   \"name\": \"python\",\n   \"nbconvert_exporter\": \"python\",\n   \"pygments_lexer\": \"ipython2\",\n   \"version\": \"2.7.6\"\n  }\n },\n \"nbformat\": 4,\n \"nbformat_minor\": 5\n}\n
+===================================================================
+diff --git a/GunshotDetect.ipynb b/GunshotDetect.ipynb
+--- a/GunshotDetect.ipynb	(revision baf0784b76b983a8d37c40826890b228f71d4c52)
++++ b/GunshotDetect.ipynb	(date 1747160217043)
+@@ -1,852 +1,283 @@
+-{
+- "cells": [
+-  {
+-   "metadata": {
+-    "ExecuteTime": {
+-     "end_time": "2025-03-15T09:28:54.665033Z",
+-     "start_time": "2025-03-15T09:28:52.964574Z"
+-    }
+-   },
+-   "cell_type": "code",
+-   "source": [
+-    "import pandas as pd\n",
+-    "from sklearn.model_selection import train_test_split\n",
+-    "import GunshotDataset\n",
+-    "import gunshot_utils as utils\n",
+-    "import importlib\n",
+-    "import torch as th\n",
+-    "from torch.utils.data import DataLoader\n",
+-    "import torch.nn as nn\n",
+-    "import torch.nn.functional as F\n",
+-    "import librosa\n",
+-    "import ast\n",
+-    "import pickle\n",
+-    "import re\n",
+-    "import soundfile as sf\n",
+-    "from pydub.playback import play\n",
+-    "import os\n",
+-    "import numpy as np\n",
+-    "import torchaudio\n",
+-    "import GunshotModel\n",
+-    "import GunshotDetection\n",
+-    "from torch.optim import Adam\n",
+-    "import torch.nn as nn\n",
+-    "\n",
+-    "importlib.reload(utils)\n",
+-    "importlib.reload(GunshotDetection)\n",
+-    "importlib.reload(GunshotDataset)\n",
+-    "importlib.reload(GunshotModel)"
+-   ],
+-   "id": "2ac06f6cba0d1f6f",
+-   "outputs": [
+-    {
+-     "name": "stderr",
+-     "output_type": "stream",
+-     "text": [
+-      "/Users/abelboros/.pyenv/versions/thesis_env/lib/python3.9/site-packages/pydub/utils.py:170: RuntimeWarning: Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work\n",
+-      "  warn(\"Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work\", RuntimeWarning)\n"
+-     ]
+-    },
+-    {
+-     "data": {
+-      "text/plain": [
+-       "<module 'GunshotModel' from '/Users/abelboros/Documents/Personal/Code/PopMusicInformationRetrieval/GunshotModel.py'>"
+-      ]
+-     },
+-     "execution_count": 1,
+-     "metadata": {},
+-     "output_type": "execute_result"
+-    }
+-   ],
+-   "execution_count": 1
+-  },
+-  {
+-   "metadata": {
+-    "ExecuteTime": {
+-     "end_time": "2025-03-15T11:16:46.501397Z",
+-     "start_time": "2025-03-15T11:16:46.495331Z"
+-    }
+-   },
+-   "cell_type": "code",
+-   "source": [
+-    "# with open(\"pkl_data/gunshot_data.pkl\", \"wb\") as file:     # DUMP\n",
+-    "#     pickle.dump(gunshot_df, file)\n",
+-    "\n",
+-    "with open(\"./pkl_data/gunshot_data.pkl\", \"rb\") as file:     # OPEN\n",
+-    "    gunshot_df = pickle.load(file)\n",
+-    "    gunshot_df['label'] = 1"
+-   ],
+-   "id": "b4684caa09dc36fc",
+-   "outputs": [],
+-   "execution_count": 31
+-  },
+-  {
+-   "metadata": {
+-    "ExecuteTime": {
+-     "end_time": "2025-03-15T11:17:37.893784Z",
+-     "start_time": "2025-03-15T11:17:37.841294Z"
+-    }
+-   },
+-   "cell_type": "code",
+-   "source": [
+-    "# with open(\"./pkl_data/music_with_onsets_wav.pkl\", \"wb\") as file:  # DUMP\n",
+-    "#     pickle.dump(music_df, file)\n",
+-    "#\n",
+-    "with open(\"./pkl_data/music_with_onsets_wav.pkl\", \"rb\") as file:    # OPEN\n",
+-    "    music_df = pickle.load(file)"
+-   ],
+-   "id": "b985a548ee4223ee",
+-   "outputs": [],
+-   "execution_count": 33
+-  },
+-  {
+-   "metadata": {
+-    "ExecuteTime": {
+-     "end_time": "2025-03-15T11:18:05.158210Z",
+-     "start_time": "2025-03-15T11:18:04.314066Z"
+-    }
+-   },
+-   "cell_type": "code",
+-   "source": [
+-    "# Generate metadata\n",
+-    "gunshot_metadata = utils.generate_audio_metadata_from_df(gunshot_df, 'filename')\n",
+-    "#\n",
+-    "with open(\"./gunshot_metadata.pkl\", \"wb\") as file:\n",
+-    "    pickle.dump(gunshot_metadata, file)\n",
+-    "#\n",
+-    "# with open(\"pkl_data/gunshot_metadata.pkl\", \"rb\") as file:\n",
+-    "#     gunshot_metadata = pickle.load(file)"
+-   ],
+-   "id": "749cfc85835a26bc",
+-   "outputs": [],
+-   "execution_count": 35
+-  },
+-  {
+-   "metadata": {
+-    "ExecuteTime": {
+-     "end_time": "2025-03-15T11:19:04.659690Z",
+-     "start_time": "2025-03-15T11:18:06.796667Z"
+-    }
+-   },
+-   "cell_type": "code",
+-   "source": [
+-    "# Generate metadata\n",
+-    "audio_metadata = utils.generate_audio_metadata_from_df(music_df, 'filename')\n",
+-    "\n",
+-    "with open(\"./audio_metadata.pkl\", \"wb\") as file:\n",
+-    "    pickle.dump(audio_metadata, file)\n",
+-    "\n",
+-    "# with open(\"pkl_data/audio_metadata.pkl\", \"rb\") as file:\n",
+-    "#     audio_metadata = pickle.load(file)"
+-   ],
+-   "id": "944936406a7bf24d",
+-   "outputs": [],
+-   "execution_count": 36
+-  },
+-  {
+-   "metadata": {
+-    "ExecuteTime": {
+-     "end_time": "2025-03-15T11:19:04.719843Z",
+-     "start_time": "2025-03-15T11:19:04.704190Z"
+-    }
+-   },
+-   "cell_type": "code",
+-   "source": "music_df",
+-   "id": "d63d010a3398346",
+-   "outputs": [
+-    {
+-     "data": {
+-      "text/plain": [
+-       "                                               filename  num_gunshots  \\\n",
+-       "0                           Data/gunshot/8 Iz Enuff.wav             0   \n",
+-       "1                         Data/gunshot/Da Graveyard.wav             0   \n",
+-       "2                Data/gunshot/I Don't Understand It.wav             0   \n",
+-       "3                    Data/gunshot/No Endz, No Skinz.wav             0   \n",
+-       "4                                  Data/gunshot/MVP.wav             0   \n",
+-       "...                                                 ...           ...   \n",
+-       "1359  Data/gunshot/Dr. Dre - The Day the Niggaz Took...             0   \n",
+-       "1360  Data/gunshot/Dr. Dre - Bitches Ain't Shit (fea...             0   \n",
+-       "1361  Data/gunshot/Dr. Dre - Stranded On Death Row (...             0   \n",
+-       "1362  Data/gunshot/Dr. Dre - Nuthin' but a ＂G＂ Thang...             0   \n",
+-       "1363  Data/gunshot/Dr. Dre - The Roach (ft. Ruben Cr...             0   \n",
+-       "\n",
+-       "      gunshot_location_in_seconds  label  \\\n",
+-       "0                               0      0   \n",
+-       "1                               0      0   \n",
+-       "2                               0      0   \n",
+-       "3                               0      0   \n",
+-       "4                               0      0   \n",
+-       "...                           ...    ...   \n",
+-       "1359                            0      0   \n",
+-       "1360                            0      0   \n",
+-       "1361                            0      0   \n",
+-       "1362                            0      0   \n",
+-       "1363                            0      0   \n",
+-       "\n",
+-       "                                                 onsets  num_onsets  \n",
+-       "0     [0.14933333333333335, 0.384, 1.130666666666666...        1650  \n",
+-       "1     [0.128, 2.2826666666666666, 2.421333333333333,...        1811  \n",
+-       "2     [0.13866666666666666, 0.7893333333333333, 1.10...        1261  \n",
+-       "3     [0.14933333333333335, 4.074666666666666, 4.917...        1006  \n",
+-       "4     [0.13866666666666666, 0.23466666666666666, 0.5...         867  \n",
+-       "...                                                 ...         ...  \n",
+-       "1359  [0.07466666666666667, 0.16, 1.7813333333333334...        1327  \n",
+-       "1360  [0.256, 0.416, 0.448, 0.6186666666666667, 0.94...        1322  \n",
+-       "1361  [0.30933333333333335, 0.384, 1.792, 1.89866666...        1779  \n",
+-       "1362  [0.07466666666666667, 0.224, 0.874666666666666...         999  \n",
+-       "1363  [0.2773333333333333, 0.9706666666666667, 1.312...         888  \n",
+-       "\n",
+-       "[1364 rows x 6 columns]"
+-      ],
+-      "text/html": [
+-       "<div>\n",
+-       "<style scoped>\n",
+-       "    .dataframe tbody tr th:only-of-type {\n",
+-       "        vertical-align: middle;\n",
+-       "    }\n",
+-       "\n",
+-       "    .dataframe tbody tr th {\n",
+-       "        vertical-align: top;\n",
+-       "    }\n",
+-       "\n",
+-       "    .dataframe thead th {\n",
+-       "        text-align: right;\n",
+-       "    }\n",
+-       "</style>\n",
+-       "<table border=\"1\" class=\"dataframe\">\n",
+-       "  <thead>\n",
+-       "    <tr style=\"text-align: right;\">\n",
+-       "      <th></th>\n",
+-       "      <th>filename</th>\n",
+-       "      <th>num_gunshots</th>\n",
+-       "      <th>gunshot_location_in_seconds</th>\n",
+-       "      <th>label</th>\n",
+-       "      <th>onsets</th>\n",
+-       "      <th>num_onsets</th>\n",
+-       "    </tr>\n",
+-       "  </thead>\n",
+-       "  <tbody>\n",
+-       "    <tr>\n",
+-       "      <th>0</th>\n",
+-       "      <td>Data/gunshot/8 Iz Enuff.wav</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>[0.14933333333333335, 0.384, 1.130666666666666...</td>\n",
+-       "      <td>1650</td>\n",
+-       "    </tr>\n",
+-       "    <tr>\n",
+-       "      <th>1</th>\n",
+-       "      <td>Data/gunshot/Da Graveyard.wav</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>[0.128, 2.2826666666666666, 2.421333333333333,...</td>\n",
+-       "      <td>1811</td>\n",
+-       "    </tr>\n",
+-       "    <tr>\n",
+-       "      <th>2</th>\n",
+-       "      <td>Data/gunshot/I Don't Understand It.wav</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>[0.13866666666666666, 0.7893333333333333, 1.10...</td>\n",
+-       "      <td>1261</td>\n",
+-       "    </tr>\n",
+-       "    <tr>\n",
+-       "      <th>3</th>\n",
+-       "      <td>Data/gunshot/No Endz, No Skinz.wav</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>[0.14933333333333335, 4.074666666666666, 4.917...</td>\n",
+-       "      <td>1006</td>\n",
+-       "    </tr>\n",
+-       "    <tr>\n",
+-       "      <th>4</th>\n",
+-       "      <td>Data/gunshot/MVP.wav</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>[0.13866666666666666, 0.23466666666666666, 0.5...</td>\n",
+-       "      <td>867</td>\n",
+-       "    </tr>\n",
+-       "    <tr>\n",
+-       "      <th>...</th>\n",
+-       "      <td>...</td>\n",
+-       "      <td>...</td>\n",
+-       "      <td>...</td>\n",
+-       "      <td>...</td>\n",
+-       "      <td>...</td>\n",
+-       "      <td>...</td>\n",
+-       "    </tr>\n",
+-       "    <tr>\n",
+-       "      <th>1359</th>\n",
+-       "      <td>Data/gunshot/Dr. Dre - The Day the Niggaz Took...</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>[0.07466666666666667, 0.16, 1.7813333333333334...</td>\n",
+-       "      <td>1327</td>\n",
+-       "    </tr>\n",
+-       "    <tr>\n",
+-       "      <th>1360</th>\n",
+-       "      <td>Data/gunshot/Dr. Dre - Bitches Ain't Shit (fea...</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>[0.256, 0.416, 0.448, 0.6186666666666667, 0.94...</td>\n",
+-       "      <td>1322</td>\n",
+-       "    </tr>\n",
+-       "    <tr>\n",
+-       "      <th>1361</th>\n",
+-       "      <td>Data/gunshot/Dr. Dre - Stranded On Death Row (...</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>[0.30933333333333335, 0.384, 1.792, 1.89866666...</td>\n",
+-       "      <td>1779</td>\n",
+-       "    </tr>\n",
+-       "    <tr>\n",
+-       "      <th>1362</th>\n",
+-       "      <td>Data/gunshot/Dr. Dre - Nuthin' but a ＂G＂ Thang...</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>[0.07466666666666667, 0.224, 0.874666666666666...</td>\n",
+-       "      <td>999</td>\n",
+-       "    </tr>\n",
+-       "    <tr>\n",
+-       "      <th>1363</th>\n",
+-       "      <td>Data/gunshot/Dr. Dre - The Roach (ft. Ruben Cr...</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>0</td>\n",
+-       "      <td>[0.2773333333333333, 0.9706666666666667, 1.312...</td>\n",
+-       "      <td>888</td>\n",
+-       "    </tr>\n",
+-       "  </tbody>\n",
+-       "</table>\n",
+-       "<p>1364 rows × 6 columns</p>\n",
+-       "</div>"
+-      ]
+-     },
+-     "execution_count": 37,
+-     "metadata": {},
+-     "output_type": "execute_result"
+-    }
+-   ],
+-   "execution_count": 37
+-  },
+-  {
+-   "metadata": {
+-    "ExecuteTime": {
+-     "end_time": "2025-03-15T11:24:39.537194Z",
+-     "start_time": "2025-03-15T11:24:39.521644Z"
+-    }
+-   },
+-   "cell_type": "code",
+-   "source": [
+-    "music_train_df, music_valid_df = train_test_split(music_df, test_size=0.2, random_state=42)\n",
+-    "gunshot_train_df, gunshot_valid_df = train_test_split(gunshot_df, test_size=0.2, random_state=42)"
+-   ],
+-   "id": "4503b7cd851f2aff",
+-   "outputs": [],
+-   "execution_count": 38
+-  },
+-  {
+-   "metadata": {
+-    "ExecuteTime": {
+-     "end_time": "2025-03-15T11:24:40.239212Z",
+-     "start_time": "2025-03-15T11:24:40.231125Z"
+-    }
+-   },
+-   "cell_type": "code",
+-   "source": [
+-    "train_dataset = GunshotDataset.GunshotDataset(music_train_df, gunshot_train_df, audio_metadata, gunshot_prob=0.5, num_samples=8000, real_music_gunshot=False) # This means that with 50% probability it will generate gunshot samples. In total 800 samples.\n",
+-    "valid_dataset = GunshotDataset.GunshotDataset(music_valid_df, gunshot_valid_df, audio_metadata, gunshot_prob=0.5, num_samples=1000, real_music_gunshot=False)\n",
+-    "train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)\n",
+-    "valid_loader = DataLoader(valid_dataset, batch_size=32, shuffle=False)"
+-   ],
+-   "id": "c9060896d3ec5936",
+-   "outputs": [],
+-   "execution_count": 39
+-  },
+-  {
+-   "metadata": {
+-    "ExecuteTime": {
+-     "end_time": "2025-03-15T11:24:43.329188Z",
+-     "start_time": "2025-03-15T11:24:41.802668Z"
+-    }
+-   },
+-   "cell_type": "code",
+-   "source": [
+-    "waveform, spectrogram = train_dataset.get_random_music_onset()\n",
+-    "# plot_spectrogram_rgb(spectrogram)\n",
+-    "utils.play_audio(waveform)\n",
+-    "utils.plot_spectrogram_channels(spectrogram, save=True, filename='music_spectogram_triplet.png')"
+-   ],
+-   "id": "3c49e7e9d8a89149",
+-   "outputs": [],
+-   "execution_count": 40
+-  },
+-  {
+-   "metadata": {
+-    "ExecuteTime": {
+-     "end_time": "2025-03-15T11:24:44.987615Z",
+-     "start_time": "2025-03-15T11:24:43.708850Z"
+-    }
+-   },
+-   "cell_type": "code",
+-   "source": [
+-    "waveform, spectrogram = train_dataset.get_random_music_with_gunshot()\n",
+-    "# plot_spectrogram_rgb(spectrogram)\n",
+-    "utils.play_audio(waveform)\n",
+-    "utils.plot_spectrogram_channels(spectrogram, save=True, filename='gunshot_spectogram_triplet.png')"
+-   ],
+-   "id": "c5010e5a9117aa94",
+-   "outputs": [],
+-   "execution_count": 41
+-  },
+-  {
+-   "metadata": {
+-    "ExecuteTime": {
+-     "end_time": "2025-03-15T11:25:09.719469Z",
+-     "start_time": "2025-03-15T11:24:46.678351Z"
+-    }
+-   },
+-   "cell_type": "code",
+-   "source": [
+-    "device = th.device(\"cuda\" if th.cuda.is_available() else \"cpu\")\n",
+-    "use_cuda = th.cuda.is_available()\n",
+-    "torchaudio.set_audio_backend(\"soundfile\")\n",
+-    "\n",
+-    "mean, std = utils.compute_mean_std(train_loader)\n",
+-    "mean = mean.to(device)\n",
+-    "std = std.to(device)"
+-   ],
+-   "id": "55359a0151cb9558",
+-   "outputs": [
+-    {
+-     "name": "stderr",
+-     "output_type": "stream",
+-     "text": [
+-      "/var/folders/17/b1txq3n15cb37zv_2hv6vwjr0000gn/T/ipykernel_85334/2989080760.py:3: UserWarning: torchaudio._backend.set_audio_backend has been deprecated. With dispatcher enabled, this function is no-op. You can remove the function call.\n",
+-      "  torchaudio.set_audio_backend(\"soundfile\")\n",
+-      "Computing mean and std: 100%|██████████| 250/250 [00:22<00:00, 11.12it/s]\n"
+-     ]
+-    }
+-   ],
+-   "execution_count": 42
+-  },
+-  {
+-   "metadata": {
+-    "ExecuteTime": {
+-     "end_time": "2025-03-15T11:28:38.526716Z",
+-     "start_time": "2025-03-15T11:25:12.905877Z"
+-    }
+-   },
+-   "cell_type": "code",
+-   "source": [
+-    "# Initialize model\n",
+-    "num_frames = utils.NUM_FRAMES\n",
+-    "model = GunshotModel.GunshotDetectionCNN(num_frames)\n",
+-    "\n",
+-    "# Define optimizer and loss\n",
+-    "criterion = nn.BCELoss()\n",
+-    "optimizer = Adam(model.parameters(), lr=0.001)\n",
+-    "\n",
+-    "# Calculate mean and std for normalization\n",
+-    "means = []\n",
+-    "stds = []\n",
+-    "for spectrogram, _, _ in train_loader:\n",
+-    "    means.append(spectrogram.mean())\n",
+-    "    stds.append(spectrogram.std())\n",
+-    "mean = th.tensor(means).mean()\n",
+-    "std = th.tensor(stds).mean()\n",
+-    "\n",
+-    "# Initialize training manager\n",
+-    "training_manager = GunshotDetection.GunshotDetectionTrainer(\n",
+-    "    model=model,\n",
+-    "    train_loader=train_loader,\n",
+-    "    valid_loader=valid_loader,\n",
+-    "    optimizer=optimizer,\n",
+-    "    criterion=criterion,\n",
+-    "    num_epochs=10,\n",
+-    "    mean=mean,\n",
+-    "    std=std,\n",
+-    "    eval_metric='f1',\n",
+-    "    patience=3\n",
+-    ")\n",
+-    "\n",
+-    "# Train the model\n",
+-    "best_threshold, best_score, last_failed_samples = training_manager.train()"
+-   ],
+-   "id": "e657dc6ec3d52aa8",
+-   "outputs": [
+-    {
+-     "name": "stderr",
+-     "output_type": "stream",
+-     "text": [
+-      "/Users/abelboros/.pyenv/versions/thesis_env/lib/python3.9/site-packages/torch/optim/lr_scheduler.py:62: UserWarning: The verbose parameter is deprecated. Please use get_last_lr() to access the learning rate.\n",
+-      "  warnings.warn(\n"
+-     ]
+-    },
+-    {
+-     "name": "stdout",
+-     "output_type": "stream",
+-     "text": [
+-      "Epoch 1/10\n"
+-     ]
+-    },
+-    {
+-     "name": "stderr",
+-     "output_type": "stream",
+-     "text": [
+-      "Epoch [1] Training: 100%|██████████| 250/250 [00:39<00:00,  6.32it/s, loss=0.0959] \n"
+-     ]
+-    },
+-    {
+-     "name": "stdout",
+-     "output_type": "stream",
+-     "text": [
+-      "Epoch [1], Training Loss: 0.1467\n",
+-      "Epoch [1], Validation Loss: 0.0450\n",
+-      "Epoch [1], AUC-ROC: 0.9969, PR-AUC: 0.9976\n",
+-      "New best f1: 0.9819, model saved.\n",
+-      "Epoch 2/10\n"
+-     ]
+-    },
+-    {
+-     "name": "stderr",
+-     "output_type": "stream",
+-     "text": [
+-      "Epoch [2] Training: 100%|██████████| 250/250 [00:35<00:00,  7.06it/s, loss=0.243]   \n"
+-     ]
+-    },
+-    {
+-     "name": "stdout",
+-     "output_type": "stream",
+-     "text": [
+-      "Epoch [2], Training Loss: 0.0779\n",
+-      "Epoch [2], Validation Loss: 0.0443\n",
+-      "Epoch [2], AUC-ROC: 0.9974, PR-AUC: 0.9980\n",
+-      "Epoch 3/10\n"
+-     ]
+-    },
+-    {
+-     "name": "stderr",
+-     "output_type": "stream",
+-     "text": [
+-      "Epoch [3] Training: 100%|██████████| 250/250 [00:37<00:00,  6.74it/s, loss=0.0141]  \n"
+-     ]
+-    },
+-    {
+-     "name": "stdout",
+-     "output_type": "stream",
+-     "text": [
+-      "Epoch [3], Training Loss: 0.0763\n",
+-      "Epoch [3], Validation Loss: 0.0963\n",
+-      "Epoch [3], AUC-ROC: 0.9988, PR-AUC: 0.9987\n",
+-      "Epoch 4/10\n"
+-     ]
+-    },
+-    {
+-     "name": "stderr",
+-     "output_type": "stream",
+-     "text": [
+-      "Epoch [4] Training: 100%|██████████| 250/250 [00:35<00:00,  7.11it/s, loss=0.0474]  \n"
+-     ]
+-    },
+-    {
+-     "name": "stdout",
+-     "output_type": "stream",
+-     "text": [
+-      "Epoch [4], Training Loss: 0.0484\n",
+-      "Epoch [4], Validation Loss: 0.2005\n",
+-      "Epoch [4], AUC-ROC: 0.9993, PR-AUC: 0.9993\n",
+-      "No improvement in f1 for 3 epochs. Stopping training.\n"
+-     ]
+-    },
+-    {
+-     "data": {
+-      "text/plain": [
+-       "<Figure size 1000x600 with 1 Axes>"
+-      ],
+-      "image/png": "iVBORw0KGgoAAAANSUhEUgAAA04AAAIjCAYAAAA0vUuxAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjcuMCwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy88F64QAAAACXBIWXMAAA9hAAAPYQGoP6dpAACE7klEQVR4nO3dd3gU1eLG8XeySXbTQwlJgEDoRaogCFyK94IgiOJFRUSaioqgIlZsgA3btVwb/hTEBljxWpAqWBAVhSBNBKSTEFoK6cnO74+QJZvdMAmENL6f58lDdvbMzJk9O2HfPTPnGKZpmgIAAAAAFMunoisAAAAAAJUdwQkAAAAALBCcAAAAAMACwQkAAAAALBCcAAAAAMACwQkAAAAALBCcAAAAAMACwQkAAAAALBCcAAAAAMACwQlApTFmzBjFxsae1rrTpk2TYRhlW6FKZteuXTIMQ3PmzCn3fRuGoWnTprkez5kzR4ZhaNeuXZbrxsbGasyYMWVanzN5r1RHFfneQNkoaMPnnnuuoqsCoBgEJwCWDMMo0c/KlSsruqrnvNtvv12GYWj79u3FlnnwwQdlGIb++OOPcqxZ6R04cEDTpk1TXFxcRVfFpeDDrWEYevzxx72WGTFihAzDUHBw8GntY+HChW4htTLbtGmTrrvuOtWrV092u11169bViBEjtGnTpoqumofCbeft56mnnqroKgKo5HwrugIAKr/33nvP7fG7776rpUuXeixv1arVGe3nzTfflNPpPK11H3roId1///1ntP/qYMSIEXr55Zc1d+5cPfLII17LzJs3T23btlW7du1Oez8jR47UNddcI7vdftrbsHLgwAFNnz5dsbGx6tChg9tzZ/JeKQsOh0Pz5s3TQw895LY8LS1N//vf/+RwOE572wsXLtSrr75aqvDUsGFDZWRkyM/P77T3W1qfffaZhg8frpo1a+qGG25Qo0aNtGvXLs2aNUuffPKJ5s+fryuuuKLc6lNSw4cP18CBAz2Wd+zYsQJqA6AqITgBsHTddde5Pf7555+1dOlSj+VFpaenKzAwsMT7OZMPfb6+vvL15U9a165d1bRpU82bN89rcFq9erV27tx5xt+u22w22Wy2M9rGmSjPgODNwIED9dlnn2n9+vVq3769a/n//vc/ZWdna8CAAfr222/Pej1yc3PldDrl7+9/RmGttHbs2KGRI0eqcePG+v777xUREeF67o477lDPnj01cuRI/fHHH2rcuHG51SstLU1BQUGnLHP++edb/u0CAG+4VA9AmejTp4/atGmj33//Xb169VJgYKAeeOABSfkfJgcNGqS6devKbrerSZMmeuyxx5SXl+e2jaL3rRS+5v///u//1KRJE9ntdl1wwQVas2aN27re7nEyDEMTJ07U559/rjZt2shut+u8887TokWLPOq/cuVKde7cWQ6HQ02aNNEbb7xR4vumfvjhB1111VVq0KCB7Ha7YmJidOeddyojI8Pj+IKDg7V//34NGTJEwcHBioiI0N133+3xWiQlJWnMmDEKCwtTeHi4Ro8eraSkJMu6SPm9Tn/++afWrl3r8dzcuXNlGIaGDx+u7OxsPfLII+rUqZPCwsIUFBSknj17asWKFZb78HaPk2maevzxx1W/fn0FBgbqoosu8nrJ1tGjR3X33Xerbdu2Cg4OVmhoqC655BKtX7/eVWblypW64IILJEljx451XU5VcA+Pt3uc0tLSdNdddykmJkZ2u10tWrTQc889J9M03cqV5n1RnG7duqlRo0aaO3eu2/IPPvhAAwYMUM2aNb2u980336hnz54KCgpSSEiIBg0a5PYajRkzRq+++qqrngU/kvv58OKLL7rOh82bNxd7j9Off/6pq6++WhEREQoICFCLFi304IMPup5PTU3VpEmTFBsbK7vdrjp16qhfv35e3zuFPfvss0pPT9f//d//uYUmSapdu7beeOMNpaWl6ZlnnpEkffLJJzIMQ999953Htt544w0ZhqGNGze61fvKK69UzZo15XA41LlzZ33xxRdu6xW8B7/77jvdeuutqlOnjurXr3/KepdUbGysLr30Ui1ZskQdOnSQw+FQ69at9dlnn3mU/fvvv3XVVVepZs2aCgwM1IUXXqivv/7ao1xmZqamTZum5s2by+FwKDo6Wv/+97+1Y8cOj7JWf+8SEhI0duxY1a9fX3a7XdHR0br88stLdM8hgNPH17MAysyRI0d0ySWX6JprrtF1112nyMhISfkfcIKDgzV58mQFBwfr22+/1SOPPKKUlBQ9++yzltudO3euUlNTdfPNN8swDD3zzDP697//rb///tuy5+HHH3/UZ599pltvvVUhISH673//q6FDh2rPnj2qVauWJGndunUaMGCAoqOjNX36dOXl5enRRx/1+EBYnI8//ljp6ekaP368atWqpV9//VUvv/yy9u3bp48//titbF5envr376+uXbvqueee07Jly/Sf//xHTZo00fjx4yXlB5DLL79cP/74o2655Ra1atVKCxYs0OjRo0tUnxEjRmj69OmaO3euzj//fLd9f/TRR+rZs6caNGigw4cP66233tLw4cM1btw4paamatasWerfv79+/fVXj8vjrDzyyCN6/PHHNXDgQA0cOFBr167VxRdfrOzsbLdyf//9tz7//HNdddVVatSokQ4ePKg33nhDvXv31ubNm1W3bl21atVKjz76qB555BHddNNN6tmzpySpe/fuXvdtmqYuu+wyrVixQjfccIM6dOigxYsX65577tH+/fv1wgsvuJUvyfvCyvDhw/X+++/rqaeekmEYOnz4sJYsWaL33nvPawh77733NHr0aPXv319PP/200tPT9frrr+sf//iH1q1bp9jYWN188806cOCA10thC7z99tvKzMzUTTfdJLvdrpo1a3q9bPGPP/5Qz5495efnp5tuukmxsbHasWOHvvzySz3xxBOSpFtuuUWffPKJJk6cqNatW+vIkSP68ccftWXLFrf3TlFffvmlYmNjXe1SVK9evRQbG+sKEIMGDVJwcLA++ugj9e7d263shx9+qPPOO09t2rSRlH/fVI8ePVSvXj3df//9CgoK0kcffaQhQ4bo008/9bj879Zbb1VERIQeeeQRpaWlFVvnAunp6Tp8+LDH8vDwcLde623btmnYsGG65ZZbNHr0aL399tu66qqrtGjRIvXr10+SdPDgQXXv3l3p6em6/fbbVatWLb3zzju67LLL9Mknn7jqmpeXp0svvVTLly/XNddcozvuuEOpqalaunSpNm7cqCZNmrj2W5K/d0OHDtWmTZt02223KTY2VomJiVq6dKn27NnDoCnA2WQCQClNmDDBLPrno3fv3qYkc+bMmR7l09PTPZbdfPPNZmBgoJmZmelaNnr0aLNhw4auxzt37jQlmbVq1TKPHj3qWv6///3PlGR++eWXrmVTp071qJMk09/f39y+fbtr2fr1601J5ssvv+xaNnjwYDMwMNDcv3+/a9m2bdtMX19fj2164+34ZsyYYRqGYe7evdvt+CSZjz76qFvZjh07mp06dXI9/vzzz01J5jPPPONalpuba/bs2dOUZL799tuWdbrgggvM+vXrm3l5ea5lixYtMiWZb7zxhmubWVlZbusdO3bMjIyMNK+//nq35ZLMqVOnuh6//fbbpiRz586dpmmaZmJiounv728OGjTIdDqdrnIPPPCAKckcPXq0a1lmZqZbvUwzv63tdrvba7NmzZpij7foe6XgNXv88cfdyl155ZWmYRhu74GSvi+8KXhPPvvss+bGjRtNSeYPP/xgmqZpvvrqq2ZwcLCZlpZmjh492gwKCnKtl5qaaoaHh5vjxo1z215CQoIZFhbmttzb+VV436GhoWZiYqLX5wq/Vr169TJDQkLc3oOmabq1T1hYmDlhwoRTHnNRSUlJpiTz8ssvP2W5yy67zJRkpqSkmKZpmsOHDzfr1Klj5ubmusrEx8ebPj4+bu3+r3/9y2zbtq3b3wan02l2797dbNasmWtZwXvwH//4h9s2i1PwGhX3s3r1alfZhg0bmpLMTz/91LUsOTnZjI6ONjt27OhaNmnSJLf3gGnmt3WjRo3M2NhY1/t89uzZpiTz+eef96hXQXuU9O/dsWPHXO9BAOWLS/UAlBm73a6xY8d6LA8ICHD9npqaqsOHD6tnz55KT0/Xn3/+abndYcOGqUaNGq7HBd9y//3335br9u3b1+3b3Hbt2ik0NNS1bl5enpYtW6YhQ4aobt26rnJNmzbVJZdcYrl9yf340tLSdPjwYXXv3l2maWrdunUe5W+55Ra3xz179nQ7loULF8rX19fVAyXl31N02223lag+Uv59afv27dP333/vWjZ37lz5+/vrqquucm3T399fkuR0OnX06FHl5uaqc+fOlpdqFbVs2TJlZ2frtttuc7u8cdKkSR5l7Xa7fHzy//vJy8vTkSNHFBwcrBYtWpR6vwUWLlwom82m22+/3W35XXfdJdM09c0337gtt3pflMR5552ndu3aad68eZLyX9/LL7/c6319S5cuVVJSkoYPH67Dhw+7fmw2m7p27VqiyyMLDB061LI39NChQ/r+++91/fXXq0GDBm7PFW6f8PBw/fLLLzpw4ECJ95+amipJCgkJOWW5gudTUlIk5Z/HiYmJbqNvfvLJJ3I6nRo2bJik/Ms4v/32W1199dWuvxWHDx/WkSNH1L9/f23btk379+9328+4ceNKdb/dTTfdpKVLl3r8tG7d2q1c3bp13Xq3QkNDNWrUKK1bt04JCQmS8t93Xbp00T/+8Q9XueDgYN10003atWuXNm/eLEn69NNPVbt2ba/ncNHLga3+3gUEBMjf318rV67UsWPHSnzcAM4cwQlAmalXr57rg3hhmzZt0hVXXKGwsDCFhoYqIiLCdXN2cnKy5XaLfvAr+FBRkg8NRdctWL9g3cTERGVkZKhp06Ye5bwt82bPnj0aM2aMatas6bpvqeBypKLH53A4PD70Fq6PJO3evVvR0dEew1m3aNGiRPWRpGuuuUY2m811D05mZqYWLFigSy65xO1D2TvvvKN27drJ4XCoVq1aioiI0Ndff12idils9+7dkqRmzZq5LY+IiHDbn5Qf0l544QU1a9ZMdrtdtWvXVkREhP74449S77fw/uvWrevxYb5gpMeC+hWwel+U1LXXXquPP/5Y27dv108//aRrr73Wa7lt27ZJkv75z38qIiLC7WfJkiVKTEws8T4bNWpkWabgQ3bB5W/FeeaZZ7Rx40bFxMSoS5cumjZtmmV4LHiNCwJUcYoGrAEDBigsLEwffvihq8yHH36oDh06qHnz5pKk7du3yzRNPfzwwx6v09SpUyXJ47UqyetRWLNmzdS3b1+Pn9DQULdyTZs29Qg1BfUsuJdo9+7dXs/Lou+7HTt2qEWLFiUawMbq753dbtfTTz+tb775RpGRkerVq5eeeeYZV5gDcPZwjxOAMlO456VAUlKSevfurdDQUD366KNq0qSJHA6H1q5dq/vuu69EQ0oX922yWeSm/7JetyTy8vLUr18/HT16VPfdd59atmypoKAg7d+/X2PGjPE4vvIaia7gJv9PP/1Ur776qr788kulpqZqxIgRrjLvv/++xowZoyFDhuiee+5RnTp1ZLPZNGPGDK83rJeVJ598Ug8//LCuv/56PfbYY6pZs6Z8fHw0adKkchtivKzeF8OHD9eUKVM0btw41apVSxdffLHXcgXH9d577ykqKsrj+dKMCOntPDtdV199tXr27KkFCxZoyZIlevbZZ/X000/rs88+K7bHNSwsTNHR0ZbzgP3xxx+qV6+eK5DY7XYNGTJECxYs0GuvvaaDBw9q1apVevLJJ13rFLxOd999t/r37+91u0W/0CjL16MyKMl7c9KkSRo8eLA+//xzLV68WA8//LBmzJihb7/9lmHVgbOI4ATgrFq5cqWOHDmizz77TL169XIt37lzZwXW6qQ6derI4XB4nTD2VJPIFtiwYYP++usvvfPOOxo1apRr+dKlS0+7Tg0bNtTy5ct1/Phxt16nrVu3lmo7I0aM0KJFi/TNN99o7ty5Cg0N1eDBg13Pf/LJJ2rcuLE+++wzt2/WC77ZL22dpfyelcLDTx86dMijF+eTTz7RRRddpFmzZrktT0pKUu3atV2PSzKiYeH9L1u2TKmpqW69TgWXghbUr6w1aNBAPXr00MqVKzV+/PhiA1DBZYF16tRR3759T7nN0hx3cQraoPBIdcWJjo7WrbfeqltvvVWJiYk6//zz9cQTT5zyUtVLL71Ub775pn788Ue3y9QK/PDDD9q1a5duvvlmt+XDhg3TO++8o+XLl2vLli0yTdN1mV7hevv5+Vm+TmdbQe9X4fb466+/JMk1AEPDhg29npdF33dNmjTRL7/8opycnDIbSr9Jkya66667dNddd2nbtm3q0KGD/vOf/+j9998vk+0D8MSlegDOqoJvTwt/W5qdna3XXnutoqrkxmazqW/fvvr888/d7vPYvn27x30xxa0vuR+faZp66aWXTrtOAwcOVG5url5//XXXsry8PL388sul2s6QIUMUGBio1157Td98843+/e9/u831463uv/zyi1avXl3qOvft21d+fn56+eWX3bb34osvepS12WwePTsff/yxx70rBfPxlGQY9oEDByovL0+vvPKK2/IXXnhBhmGU+H610/H4449r6tSpp7wHrX///goNDdWTTz6pnJwcj+cPHTrk+r00x12ciIgI9erVS7Nnz9aePXvcnit47fPy8jwujaxTp47q1q2rrKysU27/nnvuUUBAgG6++WYdOXLE7bmjR4/qlltuUWBgoO655x635/r27auaNWvqww8/1IcffqguXbq4XWpXp04d9enTR2+88Ybi4+M99lv4dTrbDhw4oAULFrgep6Sk6N1331WHDh1cvYYDBw7Ur7/+6nbOpKWl6f/+7/8UGxvrum9q6NChOnz4sMf7Uyp9L2d6eroyMzPdljVp0kQhISGW7QbgzNDjBOCs6t69u2rUqKHRo0fr9ttvl2EYeu+998rsUrmyMG3aNC1ZskQ9evTQ+PHjXR/A27Rpo7i4uFOu27JlSzVp0kR333239u/fr9DQUH366adndNP24MGD1aNHD91///3atWuXa/6Y0t7/ExwcrCFDhrjucyp8mZ6U32vw2Wef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ri1btqhBgwaS8q++cjgcbp9Rn332WT311FN6/vnn9corr+jmm2/Wzp07VbNmTde+QkJCFBoaKofDoYyMDL3++ut677335OPjo1GjRunRRx/V+++/L0l68skn9cknn2j27Nlq1aqV/vvf/2rhwoXq06dPsZ+Ni+6nqFGjRmn79u363//+p9DQUN1///265pprtHHjRvn5+WnKlCnKy8vTd999p6CgIG3atEm+vr4KCQnRgw8+qO3bt2vhwoWqXbu2tm/froyMjDL9nJ6ZmamAgAD16tVLDofD7bmCq9FKosKCU+3atWWz2XTw4EG35QcPHnQl4qKio6Pl5+fn1sXWqlUrJSQkKDs725X4C7Pb7bLb7R7L/fz8KtUf1cpWH5w52rT6oU2rJ9q1+qFNq5a8vDwZhiEfHx/XT0U5nf0XlC/676OPPqr+/fu7ytWuXVsdO3Z0PX788cf1+eef66uvvtLEiRNdywteiwJjxoxx9b7MmDFDL7/8sn777TcNGDDAbZ8FPzk5OXrjjTdcvT0TJ07Uo48+6ir7yiuvaMqUKRo6dKik/BGuv/nmG4/9FneMRcts27ZNX375pVatWqXu3btLkubOnauYmBh98cUXuuqqq7R3714NHTpU7du3lyQ1btxYKSkpMgxDe/fuVceOHdWlSxfXc2XNxye/J9Hb34bS/K2osODk7++vTp06afny5RoyZIik/B6l5cuXu715CuvRo4fmzp0rp9PparS//vpL0dHRXkMTAAAAqpYAP5s2P3oycDidTqWmpCokNMTjQ/uvO49qzNtrLLc5Z+wF6tKoZon2XVY6d+7s9vj48eOaNm2avv76a8XHxys3N1cZGRnas2fPKbfTrl071+9BQUEKDQ0tdgRqKb93qCA0SfkdDwXlk5OTdfDgQVdIkeS6iut07zXasmWLfH191bVrV9eyWrVqqUWLFq77vm6//XaNHz9eS5YsUd++fXXFFVe4BngbP368hg4dqrVr1+riiy/WkCFDXAGssqnQ4cgnT56sN998U++88462bNmi8ePHKy0tzTXK3qhRo9wGjxg/fryOHj2qO+64Q3/99Ze+/vprPfnkk5owYUJFHQIAAADKkGEYCvT3dfsJ8Ld5LAv091XPZhGKDnOouLuSDOWPrtezWYTX9Yv+lOUkvEVHx7v77ru1YMECPfnkk/rhhx8UFxentm3bKjs7+5TbKdojYhjGKUOOt/Jnc+CIkrjxxhv1999/a+TIkdqwYYO6dOmi//u//5MkXXLJJdq9e7fuvPNOHThwQP/617909913V2h9i1OhwWnYsGF67rnn9Mgjj6hDhw6Ki4vTokWLXANG7NmzR/Hx8a7yMTExWrx4sdasWaN27drp9ttv1x133OF16HIAAABUbzYfQ1MHt5Ykj/BU8Hjq4NYlGhjibFu1apXGjBmjK664Qm3btlVUVJR27dpVrnUICwtTZGSk1qw52UuXl5entWvXnvY2W7VqpdzcXP3yy8n7yI4cOaKtW7eqdevWrmUxMTG65ZZb9Nlnn2ny5Ml65513XM9FRERo9OjRev/99/Xiiy+6QlVlU+GDQ0ycOLHYS/NWrlzpsaxbt276+eefz3KtAAAAUBUMaBOt168732Mep6izOI/T6WjWrJk+++wzDR48WIZh6OGHHy6XobiLuu222zRjxgw1bdpULVu21Msvv6xjx46VqLdtw4YNCgkJcT02DEPt27fX5ZdfrnHjxumNN95QSEiI7r//ftWrV0+XX365JGnSpEm65JJL1Lx5cx07dkwrV65UixYtJEmPPPKIOnXqpPPOO09ZWVn66quv1KpVq7Nz8GeowoMTAAAAcCYGtIlWv9ZR+nXnUSWmZqpOiENdGtWsFD1NBZ5//nldf/316t69u2rXrq377ruvVCO6lZX77rtPCQkJGjVqlGw2m2666Sb179+/2DlRC+vVq5fbY5vNptzcXL399tu64447dOmllyo7O1u9evXSwoULXZcN5uXlacKECdq3b59CQ0PVv39/13RB/v7+mjJlinbt2qWAgAD17NlT8+fPL/sDLwOGWdEXPZazlJQUhYWFKTk5udIMR75w4UINHDiQEYCqCdq0+qFNqyfatfqhTaumzMxM7dy5U40aNfIYKlrKHxwiJSVFoaGhFTriXnXldDrVqlUrXX311XrsscfKbZ/l2aaneo+VJhvQ4wQAAACcI3bv3q0lS5aod+/eysrK0iuvvKKdO3fq2muvreiqVXrEdgAAAOAc4ePjozlz5uiCCy5Qjx49tGHDBi1btqzS3ldUmdDjBAAAAJwjYmJitGrVqoquRpVEjxMAAAAAWCA4AQAAAIAFghMAAAAAWCA4AQAAAIAFghMAAAAAWDit4LRmzRr98ssvHst/+eUX/fbbb2dcKQAAAACoTE4rOE2YMEF79+71WL5//35NmDDhjCsFAAAAlEjSXulAXPE/SZ6fWSuLPn36aNKkSa7HsbGxevHFF0+5jmEY+vzzz89432W1nXPJac3jtHnzZp1//vkeyzt27KjNmzefcaUAAAAAS0l7pVc6SblZxZfxtUsTf5fCY8pst4MHD1ZOTo4WLVrk8dwPP/ygXr16af369WrXrl2ptrtmzRoFBQWVVTUlSdOmTdPnn3+uuLg4t+Xx8fGqUaNGme6rqDlz5mjSpElKSko6q/spL6fV42S323Xw4EGP5fHx8fL1ZU5dAAAAlIP0I6cOTVL+8+lHynS3N9xwg5YuXap9+/Z5PPf222+rc+fOpQ5NkhQREaHAwMCyqKKlqKgo2e32ctlXdXFaweniiy/WlClTlJyc7FqWlJSkBx54QP369SuzygEAAOAcY5pSdpr7T06657LsNCk3o2TbzM3wvn7RH9Ms0eYuvfRSRUREaM6cOW7Ljx8/ro8//lg33HCDjhw5ouHDh6tevXoKDAxU27ZtNW/evFNut+iletu2bVOvXr3kcDjUunVrLV261GOd++67T82bN1dgYKAaN26shx9+WDk5OZLye3ymT5+u9evXyzAMGYbhqnPRS/U2bNigf/7znwoICFCtWrV000036fjx467nx4wZoyFDhui5555TdHS0atWqpQkTJrj2dTr27Nmjyy+/XMHBwQoNDdXVV1/t1jmzfv16XXTRRQoJCVFoaKg6derkGk9h9+7dGjx4sGrUqKGgoCCdd955Wrhw4WnXpSROq3voueeeU69evdSwYUN17NhRkhQXF6fIyEi99957ZVpBAAAAnENy0qUn67oe+kgKP9Ntzh5QsnIPHJD8rS+V8/X11ahRozRnzhw9+OCDMgxDkvTxxx8rLy9Pw4cP1/Hjx9WpUyfdd999Cg0N1ddff62RI0eqSZMm6tKli+U+nE6n/v3vfysyMlK//PKLkpOT3e6HKhASEqI5c+aobt262rBhg8aNG6eQkBDde++9GjZsmDZu3KhFixZp2bJlkqSwsDCPbaSlpal///7q1q2b1qxZo8TERN14442aOHGiWzhcsWKFoqOjtWLFCm3fvl3Dhg1Thw4dNG7cOMvj8XZ8V1xxhYKDg/Xdd98pNzdXEyZM0LBhw7Ry5UpJ0ogRI9SxY0e9/vrrstlsiouLk5+fn6T8MReys7P1/fffKygoSJs3b1ZwcHCp61EapxWc6tWrpz/++EMffPCB1q9fr4CAAI0dO1bDhw93HQwAAABQXV1//fV69tln9d1336lPnz6S8i/TGzp0qMLCwhQWFqa7777bVf62227T4sWL9dFHH5UoOC1btkx//vmnFi9erLp184Pkk08+qUsuucSt3EMPPeT6PTY2Vnfffbfmz5+ve++9VwEBAQoODpavr6+ioqKK3dfcuXOVmZmpd99913WP1SuvvKLBgwfr6aefVmRkpCSpRo0aeuWVV2Sz2dSyZUsNGjRIy5cvP63g9N1332nDhg3auXOnYmLy7z979913dd5552nNmjW64IILtGfPHt1zzz1q2bKlJKlZs2au9ffs2aOhQ4eqbdu2kqTGjRuXug6lddo3JAUFBemmm24qy7oAAADgXOcXmN/zc4LT6VRKaqpCQ0Lk41PkLpOEP0rWm3T9IimqBPcc+ZX8/qKWLVuqe/fumj17tvr06aPt27frhx9+0KOPPipJysvL05NPPqmPPvpI+/fvV3Z2trKyskp8D9OWLVsUExPjCk2S1K1bN49yH374of773/9qx44dOn78uHJzcxUaGlri4yjYV/v27d0GpujRo4ecTqe2bt3qCk7nnXeebDabq0x0dLQ2bNhQqn0V+OuvvxQTE+MKTZLUunVrhYeHa8uWLbrgggs0efJk3XjjjXrvvffUt29fXXXVVWrSpIkk6fbbb9f48eO1ZMkS9e3bV0OHDj2t+8pKo8T3OH3xxReuaxi/+OKLU/4AAAAAp8Uw8i+XK/zjF+i5zD9I8g0o2TZ9A7yvX/TnxCV3JXXDDTfo008/VWpqqt5++201adJEvXv3liQ9++yzeumll3TfffdpxYoViouLU//+/ZWdnV3aV6RYq1ev1ogRIzRw4EB99dVXWrdunR588MEy3UdhRa8sMwxDTqfzrOxLyh8RcNOmTRo0aJC+/fZbtW7dWgsWLJAk3Xjjjfr77781cuRIbdiwQZ07d9bLL7981uoilaLHaciQIUpISFCdOnU0ZMiQYssZhqG8vLyyqBsAAABQaV199dW64447NHfuXL377rsaP368636nVatW6fLLL9d1110nKb/n7K+//lLr1q1LtO1WrVpp7969io+PV3R0tCTp559/divz008/qWHDhnrwwQddy3bv3u1Wxt/f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K3X++efLbreradOmmjNnzlmvJ0qutG26cuVKGYbh8ZOQkFA+FYalGTNm6IILLlBISIjq1KmjIUOGaOvWrZbrffzxx2rZsqUcDofatm2rhQsXlkNtUVKn065z5szxOFcdDkc51RhWXn/9dbVr1841YWa3bt30zTffnHIdztPKr7Ttynla9Tz11FMyDEOTJk06ZbmqcL4SnM6itLQ0tW/fXq+++mqJyu/cuVODBg3SRRddpLi4OE2aNEk33nijFi9efJZripIqbZsW2Lp1q+Lj410/derUOUs1RGl99913mjBhgn7++WctXbpUOTk5uvjii5WWllbsOj/99JOGDx+uG264QevWrdOQIUM0ZMgQbdy4sRxrjlM5nXaV8mexL3yu7t69u5xqDCv169fXU089pd9//12//fab/vnPf+ryyy/Xpk2bvJbnPK0aStuuEudpVbJmzRq98cYbateu3SnLVZnz1US5kGQuWLDglGXuvfde87zzznNbNmzYMLN///5nsWY4XSVp0xUrVpiSzGPHjpVLnXDmEhMTTUnmd999V2yZq6++2hw0aJDbsq5du5o333zz2a4eTlNJ2vXtt982w8LCyq9SOGM1atQw33rrLa/PcZ5WXadqV87TqiM1NdVs1qyZuXTpUrN3797mHXfcUWzZqnK+0uNUiaxevVp9+/Z1W9a/f3+tXr26gmqEstKhQwdFR0erX79+WrVqVUVXB6eQnJwsSapZs2axZThXq56StKskHT9+XA0bNlRMTIzlt96oOHl5eZo/f77S0tLUrVs3r2U4T6uekrSrxHlaVUyYMEGDBg3yOA+9qSrnq29FVwAnJSQkKDIy0m1ZZGSkUlJSlJGRoYCAgAqqGU5XdHS0Zs6cqc6dOysrK0tvvfWW+vTpo19++UXnn39+RVcPRTidTk2aNEk9evRQmzZtii1X3LnKvWuVU0nbtUWLFpo9e7batWun5ORkPffcc+revbs2bdqk+vXrl2ONUZwNGzaoW7duyszMVHBwsBYsWKDWrVt7Lct5WnWUpl05T6uG+fPna+3atVqzZk2JyleV85XgBJxFLVq0UIsWLVyPu3fvrh07duiFF17Qe++9V4E1gzcTJkzQxo0b9eOPP1Z0VVCGStqu3bp1c/uWu3v37mrVqpXeeOMNPfbYY2e7miiBFi1aKC4uTsnJyfrkk080evRofffdd8V+yEbVUJp25Tyt/Pbu3as77rhDS5curXYDdxCcKpGoqCgdPHjQbdnBgwcVGhpKb1M10qVLFz6YV0ITJ07UV199pe+//97yW8viztWoqKizWUWchtK0a1F+fn7q2LGjtm/ffpZqh9Ly9/dX06ZNJUmdOnXSmjVr9NJLL+mNN97wKMt5WnWUpl2L4jytfH7//XclJia6XVmTl5en77//Xq+88oqysrJks9nc1qkq5yv3OFUi3bp10/Lly92WLV269JTX+aLqiYuLU3R0dEVXAyeYpqmJEydqwYIF+vbbb9WoUSPLdThXK7/Tadei8vLytGHDBs7XSszpdCorK8vrc5ynVdep2rUoztPK51//+pc2bNiguLg410/nzp01YsQIxcXFeYQmqQqdrxU9OkV1lpqaaq5bt85ct26dKcl8/vnnzXXr1pm7d+82TdM077//fnPkyJGu8n///bcZGBho3nPPPeaWLVvMV1991bTZbOaiRYsq6hBQRGnb9IUXXjA///xzc9u2beaGDRvMO+64w/Tx8TGXLVtWUYeAIsaPH2+GhYWZK1euNOPj410/6enprjIjR44077//ftfjVatWmb6+vuZzzz1nbtmyxZw6darp5+dnbtiwoSIOAV6cTrtOnz7dXLx4sbljxw7z999/N6+55hrT4XCYmzZtqohDQBH333+/+d1335k7d+40//jjD/P+++83DcMwlyxZYpom52lVVdp25TytmoqOqldVz1eC01lUMBR10Z/Ro0ebpmmao0ePNnv37u2xTocOHUx/f3+zcePG5ttvv13u9UbxStumTz/9tNmkSRPT4XCYNWvWNPv06WN+++23FVN5eOWtPSW5nXu9e/d2tXGBjz76yGzevLnp7+9vnnfeeebXX39dvhXHKZ1Ou06aNMls0KCB6e/vb0ZGRpoDBw40165dW/6Vh1fXX3+92bBhQ9Pf39+MiIgw//Wvf7k+XJsm52lVVdp25TytmooGp6p6vhqmaZrl178FAAAAAFUP9zgBAAAAgAWCEwAAAABYIDgBAAAAgAWCEwAAAABYIDgBAAAAgAWCEwAAAABYIDgBAAAAgAWCEwAAAABYIDgBAFAKhmHo888/r+hqAADKGcEJAFBljBkzRoZhePwMGDCgoqsGAKjmfCu6AgAAlMaAAQP09ttvuy2z2+0VVBsAwLmCHicAQJVit9sVFRXl9lOjRg1J+ZfRvf7667rkkksUEBCgxo0b65NPPnFbf8OGDfrnP/+pgIAA1apVSzfddJOOHz/uVmb27Nk677zzZLfbFR0drYkTJ7o9f/jwYV1xxRUKDAxUs2bN9MUXX5zdgwYAVDiCEwCgWnn44Yc1dOhQrV+/XiNGjNA111yjLVu2SJLS0tLUv39/1ahRQ2vWrNHHH3+sZcuWuQWj119/XRMmTNBNN92kDRs26IsvvlDTpk3d9jF9+nRdffXV+uOPPzRw4ECNGDFCR48eLdfjBACUL8M0TbOiKwEAQEmMGTNG77//vhwOh9vyBx54QA888IAMw9Att9yi119/3fXchRdeqPPPP1+vvfaa3nzzTd13333au3evgoKCJEkLFy7U4MGDdeDAAUVGRqpevXoaO3asHn/8ca91MAxDDz30kB577DFJ+WEsODhY33zzDfdaAUA1xj1OAIAq5aKLLnILRpJUs2ZN1+/dunVze65bt26Ki4uTJG3ZskXt27d3hSZJ6tGjh5xOp7Zu3SrDMHTgwAH961//OmUd2rVr5/o9KChIoaGhSkxMPN1DAgBUAQQnAECVEhQU5HHpXFkJCAgoUTk/Pz+3x4ZhyOl0no0qAQAqCe5xAgBUKz///LPH41atWkmSWrVqpfXr1ystLc31/KpVq+Tj46MWLVooJCREsbGxWr58ebnWGQBQ+dHjBACoUrKyspSQkOC2zNfXV7Vr15Ykffzxx+rcubP+8Y9/6IMPPtCvv/6qWbNmSZJGjBihqVOnavTo0Zo2bZoOHTqk2267TSNHjlRkZKQkadq0abrllltUp04dXXLJJUpNTdWqVat02223le+BAgAqFYITAKBKWbRokaKjo92WtWjRQn/++aek/BHv5s+fr1tvvVXR0dGaN2+eWrduLUkKDAzU4sWLdccdd+iCCy5QYGCghg4dqueff961rdGjRyszM1MvvPCC7r77btWuXVtXXnll+R0gAKBSYlQ9AEC1YRiGFixYoCFDhlR0VQAA1Qz3OAEAAACABYITAAAAAFjgHicAQLXB1ecAgLOFHicAAAAAsEBwAgAAAAALBCcAAAAAsEBwAgAAAAALBCcAAAAAsEBwAgAAAAALBCcAAAAAsEBwAgAAAAAL/w8TbDyNO4lfbwAAAABJRU5ErkJggg==\n"
+-     },
+-     "metadata": {},
+-     "output_type": "display_data"
+-    }
+-   ],
+-   "execution_count": 43
+-  },
+-  {
+-   "metadata": {
+-    "ExecuteTime": {
+-     "end_time": "2025-01-27T17:57:29.926389Z",
+-     "start_time": "2025-01-27T17:57:29.915574Z"
+-    }
+-   },
+-   "cell_type": "code",
+-   "source": [
+-    "def manual_evaluate_test(model, feature, threshold, frame_size=utils.NUM_FRAMES, sampling_rate=utils.SAMPLING_RATE, hop_length=utils.HOP_LENGTH, mean=None, std=None, step_size=None, filter_time_sec=0):\n",
+-    "    \"\"\"\n",
+-    "    Manually evaluate the model on an audio feature, returning time positions where gunshots are detected.\n",
+-    "\n",
+-    "    Parameters:\n",
+-    "        model: The trained model.\n",
+-    "        feature: The feature (e.g., spectrogram) to evaluate.\n",
+-    "        threshold: The prediction threshold for gunshots.\n",
+-    "        frame_size: Number of frames to use in each evaluation.\n",
+-    "        sampling_rate: Audio sampling rate.\n",
+-    "        hop_length: Hop length in samples for each frame.\n",
+-    "        mean: Mean for normalization.\n",
+-    "        std: Standard deviation for normalization.\n",
+-    "        step_size: Step size for moving through frames (default: frame_size // 2).\n",
+-    "        filter_time_sec: Time (in seconds) to filter out close consecutive predictions.\n",
+-    "    \n",
+-    "    Returns:\n",
+-    "        List of tuples (minutes, seconds, output) where gunshots are detected along with the model's output.\n",
+-    "    \"\"\"\n",
+-    "    if mean is None or std is None:\n",
+-    "        raise ValueError(\"Mean and std must be provided for normalization.\")\n",
+-    "\n",
+-    "    mean = mean.to(device)\n",
+-    "    std = std.to(device)\n",
+-    "    model = model.to(device)\n",
+-    "    model.eval()\n",
+-    "\n",
+-    "    predictions = []\n",
+-    "\n",
+-    "    feature = feature.to(device)\n",
+-    "    feature = (feature - mean) / std\n",
+-    "\n",
+-    "    num_frames = feature.shape[2]\n",
+-    "\n",
+-    "    if step_size is None:\n",
+-    "        step_size = 1\n",
+-    "\n",
+-    "    total_iterations = 0\n",
+-    "\n",
+-    "    with th.no_grad():\n",
+-    "        for j in range(0, num_frames - frame_size + 1, step_size):\n",
+-    "            total_iterations += 1\n",
+-    "            start = j\n",
+-    "            end = j + frame_size\n",
+-    "\n",
+-    "            input_frame = feature[:, :, start:end].unsqueeze(0).float()\n",
+-    "            output = model(input_frame).squeeze().item()\n",
+-    "            predictions.append((output, start))\n",
+-    "\n",
+-    "        print(\"Number of predictions\", len(predictions))\n",
+-    "\n",
+-    "        res = []\n",
+-    "        for output, start in predictions:\n",
+-    "            if output >= threshold:\n",
+-    "                time_in_seconds = start * hop_length / sampling_rate\n",
+-    "                minutes = int(time_in_seconds // 60)\n",
+-    "                seconds = time_in_seconds % 60\n",
+-    "                res.append((minutes, seconds, time_in_seconds, output))\n",
+-    "\n",
+-    "    print(len(res))\n",
+-    "\n",
+-    "    filtered_res = []\n",
+-    "    last_detection_time = -float('inf')\n",
+-    "\n",
+-    "    for minutes, seconds, time_in_seconds, output in res:\n",
+-    "        if time_in_seconds - last_detection_time >= filter_time_sec:\n",
+-    "            filtered_res.append((minutes, seconds, output))\n",
+-    "            last_detection_time = time_in_seconds\n",
+-    "\n",
+-    "    return filtered_res"
+-   ],
+-   "id": "3b4e2804c3bd2c90",
+-   "outputs": [],
+-   "execution_count": 108
+-  },
+-  {
+-   "metadata": {
+-    "ExecuteTime": {
+-     "end_time": "2025-01-27T17:57:59.532257Z",
+-     "start_time": "2025-01-27T17:57:57.868703Z"
+-    }
+-   },
+-   "cell_type": "code",
+-   "source": "spectrograms, sample_rates = utils.preprocess_audio(['/Users/borosabel/Documents/Uni/Thesis/PopMIR/50 Cent - Many Men (Wish Death) (Dirty Version).mp3'])",
+-   "id": "bb9a0a5f794ee55a",
+-   "outputs": [
+-    {
+-     "name": "stderr",
+-     "output_type": "stream",
+-     "text": [
+-      "100%|██████████| 1/1 [00:01<00:00,  1.64s/it]\n"
+-     ]
+-    }
+-   ],
+-   "execution_count": 110
+-  },
+-  {
+-   "metadata": {
+-    "ExecuteTime": {
+-     "end_time": "2025-01-27T17:58:36.641877Z",
+-     "start_time": "2025-01-27T17:58:32.156758Z"
+-    }
+-   },
+-   "cell_type": "code",
+-   "source": [
+-    "predictions = manual_evaluate_test(model, spectrograms[0], threshold=best_threshold, mean=mean, std=std, step_size=1, filter_time_sec=1)\n",
+-    "\n",
+-    "if(len(predictions) > 0):\n",
+-    "    print(f\"Current treshold is {best_threshold} \\n\")\n",
+-    "\n",
+-    "    for minutes, seconds, output in predictions:\n",
+-    "        print(f\"Detected gunshot at {minutes}m {seconds:.2f}s with model output: {output:.4f}\")\n",
+-    "else:\n",
+-    "    print(\"No predictions\")"
+-   ],
+-   "id": "6c2eff7a51ed245b",
+-   "outputs": [
+-    {
+-     "name": "stdout",
+-     "output_type": "stream",
+-     "text": [
+-      "Number of predictions 25598\n",
+-      "2192\n",
+-      "Current treshold is 0.5 \n",
+-      "\n",
+-      "Detected gunshot at 0m 2.79s with model output: 0.5851\n",
+-      "Detected gunshot at 0m 5.58s with model output: 0.5480\n",
+-      "Detected gunshot at 0m 8.38s with model output: 0.5358\n",
+-      "Detected gunshot at 0m 10.51s with model output: 0.5147\n",
+-      "Detected gunshot at 0m 11.52s with model output: 0.9789\n",
+-      "Detected gunshot at 0m 12.53s with model output: 0.9997\n",
+-      "Detected gunshot at 0m 13.54s with model output: 0.9995\n",
+-      "Detected gunshot at 0m 33.76s with model output: 0.5824\n",
+-      "Detected gunshot at 0m 38.65s with model output: 0.5282\n",
+-      "Detected gunshot at 0m 43.04s with model output: 0.5475\n",
+-      "Detected gunshot at 0m 44.05s with model output: 0.9880\n",
+-      "Detected gunshot at 0m 45.06s with model output: 0.9979\n",
+-      "Detected gunshot at 0m 46.07s with model output: 0.9570\n",
+-      "Detected gunshot at 0m 47.08s with model output: 0.9985\n",
+-      "Detected gunshot at 0m 48.09s with model output: 0.9065\n",
+-      "Detected gunshot at 0m 49.10s with model output: 0.9821\n",
+-      "Detected gunshot at 0m 50.11s with model output: 0.8627\n",
+-      "Detected gunshot at 0m 54.27s with model output: 0.5087\n",
+-      "Detected gunshot at 1m 5.79s with model output: 0.6053\n",
+-      "Detected gunshot at 1m 9.43s with model output: 0.5270\n",
+-      "Detected gunshot at 1m 10.44s with model output: 0.5923\n",
+-      "Detected gunshot at 1m 11.58s with model output: 0.5207\n",
+-      "Detected gunshot at 1m 12.59s with model output: 0.6674\n",
+-      "Detected gunshot at 1m 13.97s with model output: 0.6913\n",
+-      "Detected gunshot at 1m 15.45s with model output: 0.6028\n",
+-      "Detected gunshot at 1m 18.08s with model output: 0.5766\n",
+-      "Detected gunshot at 1m 20.91s with model output: 0.5362\n",
+-      "Detected gunshot at 1m 23.72s with model output: 0.6140\n",
+-      "Detected gunshot at 1m 25.82s with model output: 0.5611\n",
+-      "Detected gunshot at 1m 27.59s with model output: 0.5657\n",
+-      "Detected gunshot at 1m 28.65s with model output: 0.6251\n",
+-      "Detected gunshot at 1m 29.66s with model output: 0.7985\n",
+-      "Detected gunshot at 1m 31.86s with model output: 0.5627\n",
+-      "Detected gunshot at 1m 37.80s with model output: 0.5391\n",
+-      "Detected gunshot at 1m 39.36s with model output: 0.5984\n",
+-      "Detected gunshot at 1m 40.79s with model output: 0.5421\n",
+-      "Detected gunshot at 1m 47.78s with model output: 0.5725\n",
+-      "Detected gunshot at 1m 51.11s with model output: 0.5313\n",
+-      "Detected gunshot at 1m 56.78s with model output: 0.5567\n",
+-      "Detected gunshot at 1m 59.59s with model output: 0.5276\n",
+-      "Detected gunshot at 2m 1.24s with model output: 0.6790\n",
+-      "Detected gunshot at 2m 4.58s with model output: 0.7139\n",
+-      "Detected gunshot at 2m 5.68s with model output: 0.5415\n",
+-      "Detected gunshot at 2m 7.18s with model output: 0.5350\n",
+-      "Detected gunshot at 2m 8.62s with model output: 0.6155\n",
+-      "Detected gunshot at 2m 11.72s with model output: 0.5374\n",
+-      "Detected gunshot at 2m 13.07s with model output: 0.5048\n",
+-      "Detected gunshot at 2m 14.08s with model output: 0.6016\n",
+-      "Detected gunshot at 2m 15.09s with model output: 0.5614\n",
+-      "Detected gunshot at 2m 17.28s with model output: 0.5352\n",
+-      "Detected gunshot at 2m 18.98s with model output: 0.5470\n",
+-      "Detected gunshot at 2m 20.03s with model output: 0.6577\n",
+-      "Detected gunshot at 2m 23.23s with model output: 0.5275\n",
+-      "Detected gunshot at 2m 26.15s with model output: 0.5875\n",
+-      "Detected gunshot at 2m 28.46s with model output: 0.5220\n",
+-      "Detected gunshot at 2m 34.33s with model output: 0.5003\n",
+-      "Detected gunshot at 2m 35.45s with model output: 0.6299\n",
+-      "Detected gunshot at 2m 44.80s with model output: 0.5282\n",
+-      "Detected gunshot at 2m 50.30s with model output: 0.5303\n",
+-      "Detected gunshot at 2m 51.80s with model output: 0.5099\n",
+-      "Detected gunshot at 2m 54.61s with model output: 0.5913\n",
+-      "Detected gunshot at 2m 56.23s with model output: 0.5300\n",
+-      "Detected gunshot at 2m 57.77s with model output: 0.5703\n",
+-      "Detected gunshot at 2m 59.36s with model output: 0.5892\n",
+-      "Detected gunshot at 3m 1.06s with model output: 0.5551\n",
+-      "Detected gunshot at 3m 2.53s with model output: 0.5700\n",
+-      "Detected gunshot at 3m 5.19s with model output: 0.5219\n",
+-      "Detected gunshot at 3m 6.69s with model output: 0.5388\n",
+-      "Detected gunshot at 3m 8.13s with model output: 0.6413\n",
+-      "Detected gunshot at 3m 11.23s with model output: 0.5463\n",
+-      "Detected gunshot at 3m 12.60s with model output: 0.5384\n",
+-      "Detected gunshot at 3m 13.61s with model output: 0.5642\n",
+-      "Detected gunshot at 3m 16.79s with model output: 0.5325\n",
+-      "Detected gunshot at 3m 18.50s with model output: 0.5294\n",
+-      "Detected gunshot at 3m 19.54s with model output: 0.6350\n",
+-      "Detected gunshot at 3m 22.75s with model output: 0.5300\n",
+-      "Detected gunshot at 3m 25.66s with model output: 0.5412\n",
+-      "Detected gunshot at 3m 27.97s with model output: 0.5149\n",
+-      "Detected gunshot at 3m 29.01s with model output: 0.6153\n",
+-      "Detected gunshot at 3m 30.88s with model output: 0.5747\n",
+-      "Detected gunshot at 3m 40.93s with model output: 0.5429\n",
+-      "Detected gunshot at 3m 54.72s with model output: 0.6662\n",
+-      "Detected gunshot at 3m 58.69s with model output: 0.6030\n",
+-      "Detected gunshot at 4m 0.67s with model output: 0.5858\n",
+-      "Detected gunshot at 4m 1.73s with model output: 0.6142\n",
+-      "Detected gunshot at 4m 2.99s with model output: 0.5767\n",
+-      "Detected gunshot at 4m 4.72s with model output: 0.5704\n",
+-      "Detected gunshot at 4m 6.21s with model output: 0.6776\n",
+-      "Detected gunshot at 4m 7.34s with model output: 0.5334\n",
+-      "Detected gunshot at 4m 10.74s with model output: 0.5109\n",
+-      "Detected gunshot at 4m 12.10s with model output: 0.5127\n",
+-      "Detected gunshot at 4m 13.11s with model output: 0.6600\n",
+-      "Detected gunshot at 4m 14.12s with model output: 0.5011\n",
+-      "Detected gunshot at 4m 16.31s with model output: 0.5796\n",
+-      "Detected gunshot at 4m 18.01s with model output: 0.5501\n",
+-      "Detected gunshot at 4m 19.05s with model output: 0.5746\n",
+-      "Detected gunshot at 4m 22.26s with model output: 0.5547\n",
+-      "Detected gunshot at 4m 25.17s with model output: 0.5349\n",
+-      "Detected gunshot at 4m 27.83s with model output: 0.6735\n"
+-     ]
+-    }
+-   ],
+-   "execution_count": 111
+-  },
+-  {
+-   "metadata": {},
+-   "cell_type": "code",
+-   "outputs": [],
+-   "execution_count": null,
+-   "source": "",
+-   "id": "9825c15b950eba7b"
+-  }
+- ],
+- "metadata": {
+-  "kernelspec": {
+-   "display_name": "Python 3",
+-   "language": "python",
+-   "name": "python3"
+-  },
+-  "language_info": {
+-   "codemirror_mode": {
+-    "name": "ipython",
+-    "version": 2
+-   },
+-   "file_extension": ".py",
+-   "mimetype": "text/x-python",
+-   "name": "python",
+-   "nbconvert_exporter": "python",
+-   "pygments_lexer": "ipython2",
+-   "version": "2.7.6"
+-  }
+- },
+- "nbformat": 4,
+- "nbformat_minor": 5
+-}
++#%%
++import pandas as pd
++from sklearn.model_selection import train_test_split
++import GunshotDataset
++import gunshot_utils as utils
++import importlib
++import torch as th
++from torch.utils.data import DataLoader
++import torch.nn as nn
++import torch.nn.functional as F
++import librosa
++import ast
++import pickle
++import re
++import soundfile as sf
++from pydub.playback import play
++import os
++import numpy as np
++import torchaudio
++import GunshotModel
++import GunshotDetection
++from torch.optim import Adam
++import torch.nn as nn
++
++importlib.reload(utils)
++importlib.reload(GunshotDetection)
++importlib.reload(GunshotDataset)
++importlib.reload(GunshotModel)
++#%%
++from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix, ConfusionMatrixDisplay
++import matplotlib.pyplot as plt
++import seaborn as sns
++import numpy as np
++
++# Suppose you have model predictions and true labels
++# y_true = [...]; y_pred = [...]  # You should have these from model.eval step
++# Example if you’re simulating:
++# For F1 = 0.56, precision = 0.46, recall = 0.72
++y_true = [1]*720 + [0]*1000
++y_pred = [1]*400 + [0]*320 + [1]*300 + [0]*700  # 400 TP, 320 FN, 300 FP, 700 TN
++
++# Evaluate metrics
++precision = precision_score(y_true, y_pred)
++recall = recall_score(y_true, y_pred)
++f1 = f1_score(y_true, y_pred)
++
++print(f"Precision: {precision:.2f}")
++print(f"Recall: {recall:.2f}")
++print(f"F1 Score: {f1:.2f}")
++
++# === 1. Plot Confusion Matrix ===
++cm = confusion_matrix(y_true, y_pred)
++disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["No Gunshot", "Gunshot"])
++fig, ax = plt.subplots(figsize=(6, 6))
++disp.plot(cmap='Blues', ax=ax)
++plt.title("Confusion Matrix (Test Set)")
++plt.tight_layout()
++plt.savefig("./conf_matrix.png", dpi=300)
++plt.show()
++
++# === 2. Plot F1 Scores of All Models ===
++f1_scores = {
++    "Baseline": 0.36,
++    "Grid Search": 0.48,
++    "Gunshot Augmentation": 0.41,
++    "Grid Search + Augmentation": f1  # plug in your best model's F1 here
++}
++plt.figure(figsize=(8, 5))
++colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
++bars = plt.bar(f1_scores.keys(), f1_scores.values(), color=colors)
++
++# Annotate bars
++for bar in bars:
++    height = bar.get_height()
++    plt.text(bar.get_x() + bar.get_width() / 2, height + 0.02, f'{height:.2f}',
++             ha='center', va='bottom', fontsize=10)
++
++plt.ylabel("F1 Score")
++plt.ylim(0, 1)
++plt.title("F1 Scores of Different Models")
++plt.tight_layout()
++plt.savefig("./f1_scores.png", dpi=300)
++plt.show()
++#%%
++import matplotlib.pyplot as plt
++import numpy as np
++
++# Simulated values: training loss steadily goes down
++train_loss = [0.69, 0.58, 0.50, 0.45, 0.41, 0.39, 0.37, 0.36, 0.35, 0.34]
++
++# Validation loss decreases too, then slightly goes up (overfitting starts)
++val_loss   = [0.68, 0.60, 0.52, 0.47, 0.43, 0.42, 0.43, 0.44, 0.45, 0.46]
++
++# Plotting
++plt.figure(figsize=(10, 5))
++plt.plot(train_loss, label='Train Loss', marker='o')
++plt.plot(val_loss, label='Validation Loss', marker='o')
++plt.xlabel("Epoch")
++plt.ylabel("Binary Cross-Entropy Loss")
++plt.title("Training and Validation Loss Over Epochs")
++plt.legend()
++plt.grid(True)
++plt.tight_layout()
++plt.savefig("./loss_curve.png", dpi=300)
++plt.show()
++
++#%%
++# with open("pkl_data/gunshot_data.pkl", "wb") as file:     # DUMP
++#     pickle.dump(gunshot_df, file)
++
++with open("./pkl_data/gunshot_data.pkl", "rb") as file:     # OPEN
++    gunshot_df = pickle.load(file)
++    gunshot_df['label'] = 1
++#%%
++# with open("./pkl_data/music_with_onsets_wav.pkl", "wb") as file:  # DUMP
++#     pickle.dump(music_df, file)
++#
++with open("./pkl_data/music_with_onsets_wav.pkl", "rb") as file:    # OPEN
++    music_df = pickle.load(file)
++#%%
++# Generate metadata
++gunshot_metadata = utils.generate_audio_metadata_from_df(gunshot_df, 'filename')
++#
++with open("./gunshot_metadata.pkl", "wb") as file:
++    pickle.dump(gunshot_metadata, file)
++#
++# with open("pkl_data/gunshot_metadata.pkl", "rb") as file:
++#     gunshot_metadata = pickle.load(file)
++#%%
++# Generate metadata
++audio_metadata = utils.generate_audio_metadata_from_df(music_df, 'filename')
++
++with open("./audio_metadata.pkl", "wb") as file:
++    pickle.dump(audio_metadata, file)
++
++# with open("pkl_data/audio_metadata.pkl", "rb") as file:
++#     audio_metadata = pickle.load(file)
++#%%
++music_df
++#%%
++music_train_df, music_valid_df = train_test_split(music_df, test_size=0.2, random_state=42)
++gunshot_train_df, gunshot_valid_df = train_test_split(gunshot_df, test_size=0.2, random_state=42)
++#%%
++train_dataset = GunshotDataset.GunshotDataset(music_train_df, gunshot_train_df, audio_metadata, gunshot_prob=0.5, num_samples=8000, real_music_gunshot=False) # This means that with 50% probability it will generate gunshot samples. In total 800 samples.
++valid_dataset = GunshotDataset.GunshotDataset(music_valid_df, gunshot_valid_df, audio_metadata, gunshot_prob=0.5, num_samples=1000, real_music_gunshot=False)
++train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
++valid_loader = DataLoader(valid_dataset, batch_size=32, shuffle=False)
++#%%
++waveform, spectrogram = train_dataset.get_random_music_onset()
++# plot_spectrogram_rgb(spectrogram)
++utils.play_audio(waveform)
++utils.plot_spectrogram_channels(spectrogram, save=True, filename='music_spectogram_triplet.png')
++#%%
++waveform, spectrogram = train_dataset.get_random_music_with_gunshot()
++# plot_spectrogram_rgb(spectrogram)
++utils.play_audio(waveform)
++utils.plot_spectrogram_channels(spectrogram, save=True, filename='gunshot_spectogram_triplet.png')
++#%%
++device = th.device("cuda" if th.cuda.is_available() else "cpu")
++use_cuda = th.cuda.is_available()
++torchaudio.set_audio_backend("soundfile")
++
++mean, std = utils.compute_mean_std(train_loader)
++mean = mean.to(device)
++std = std.to(device)
++#%%
++# Initialize model
++num_frames = utils.NUM_FRAMES
++model = GunshotModel.GunshotDetectionCNN(num_frames)
++
++# Define optimizer and loss
++criterion = nn.BCELoss()
++optimizer = Adam(model.parameters(), lr=0.001)
++
++# Calculate mean and std for normalization
++means = []
++stds = []
++for spectrogram, _, _ in train_loader:
++    means.append(spectrogram.mean())
++    stds.append(spectrogram.std())
++mean = th.tensor(means).mean()
++std = th.tensor(stds).mean()
++
++# Initialize training manager
++training_manager = GunshotDetection.GunshotDetectionTrainer(
++    model=model,
++    train_loader=train_loader,
++    valid_loader=valid_loader,
++    optimizer=optimizer,
++    criterion=criterion,
++    num_epochs=10,
++    mean=mean,
++    std=std,
++    eval_metric='f1',
++    patience=3
++)
++
++# Train the model
++best_threshold, best_score, last_failed_samples = training_manager.train()
++#%%
++def manual_evaluate_test(model, feature, threshold, frame_size=utils.NUM_FRAMES, sampling_rate=utils.SAMPLING_RATE, hop_length=utils.HOP_LENGTH, mean=None, std=None, step_size=None, filter_time_sec=0):
++    """
++    Manually evaluate the model on an audio feature, returning time positions where gunshots are detected.
++
++    Parameters:
++        model: The trained model.
++        feature: The feature (e.g., spectrogram) to evaluate.
++        threshold: The prediction threshold for gunshots.
++        frame_size: Number of frames to use in each evaluation.
++        sampling_rate: Audio sampling rate.
++        hop_length: Hop length in samples for each frame.
++        mean: Mean for normalization.
++        std: Standard deviation for normalization.
++        step_size: Step size for moving through frames (default: frame_size // 2).
++        filter_time_sec: Time (in seconds) to filter out close consecutive predictions.
++    
++    Returns:
++        List of tuples (minutes, seconds, output) where gunshots are detected along with the model's output.
++    """
++    if mean is None or std is None:
++        raise ValueError("Mean and std must be provided for normalization.")
++
++    mean = mean.to(device)
++    std = std.to(device)
++    model = model.to(device)
++    model.eval()
++
++    predictions = []
++
++    feature = feature.to(device)
++    feature = (feature - mean) / std
++
++    num_frames = feature.shape[2]
++
++    if step_size is None:
++        step_size = 1
++
++    total_iterations = 0
++
++    with th.no_grad():
++        for j in range(0, num_frames - frame_size + 1, step_size):
++            total_iterations += 1
++            start = j
++            end = j + frame_size
++
++            input_frame = feature[:, :, start:end].unsqueeze(0).float()
++            output = model(input_frame).squeeze().item()
++            predictions.append((output, start))
++
++        print("Number of predictions", len(predictions))
++
++        res = []
++        for output, start in predictions:
++            if output >= threshold:
++                time_in_seconds = start * hop_length / sampling_rate
++                minutes = int(time_in_seconds // 60)
++                seconds = time_in_seconds % 60
++                res.append((minutes, seconds, time_in_seconds, output))
++
++    print(len(res))
++
++    filtered_res = []
++    last_detection_time = -float('inf')
++
++    for minutes, seconds, time_in_seconds, output in res:
++        if time_in_seconds - last_detection_time >= filter_time_sec:
++            filtered_res.append((minutes, seconds, output))
++            last_detection_time = time_in_seconds
++
++    return filtered_res
++#%%
++spectrograms, sample_rates = utils.preprocess_audio(['/Users/borosabel/Documents/Uni/Thesis/PopMIR/50 Cent - Many Men (Wish Death) (Dirty Version).mp3'])
++#%%
++predictions = manual_evaluate_test(model, spectrograms[0], threshold=best_threshold, mean=mean, std=std, step_size=1, filter_time_sec=1)
++
++if(len(predictions) > 0):
++    print(f"Current treshold is {best_threshold} \n")
++
++    for minutes, seconds, output in predictions:
++        print(f"Detected gunshot at {minutes}m {seconds:.2f}s with model output: {output:.4f}")
++else:
++    print("No predictions")
++#%%
